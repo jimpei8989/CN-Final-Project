@@ -1,0 +1,8 @@
+
+venv/
+
+.server/
+.client/
+
+.DS_Store
+.*.swp
