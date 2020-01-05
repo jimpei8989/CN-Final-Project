@@ -1,6 +1,7 @@
-import os
-import json
+import os, logging
+import json, pickle
 import hashlib, uuid, re
+from backend.misc import createLogger 
 
 def createSalt():
     return uuid.uuid4().hex
@@ -9,48 +10,73 @@ def hashPassword(password, salt):
     return hashlib.sha512((password + salt).encode('utf-8')).hexdigest()
 
 class AccountAgent():
-    def __init__(self, filename):
+    def __init__(self, rootDir):
+        self.logger = createLogger('account-agent')
+        self.rootDir = rootDir
+        self.indexFilename = os.path.join(self.rootDir, 'user.json')
+        self.crFilename = os.path.join(self.rootDir, 'userChatrooms.pkl')
         self.database = dict()
-        self.saveto = filename
+        self.chatrooms = dict()
 
+    # Load & Save
     def load(self):
         try:
-            with open(self.saveto, 'r') as f:
+            with open(self.indexFilename, 'r') as f:
                 self.database = json.load(f)
                 assert type(self.database) is dict, "Error: Database should be a dictionary"
+            with open(self.crFilename, 'rb') as f:
+                self.chatrooms = pickle.load(f)
+                assert type(self.chatrooms) is dict, "Error: Database should be a dictionary"
         except FileNotFoundError:
+            self.logger.warning('File not found')
             return False, "FileNotFoundError"
         else:
+            self.logger.info('Successfully load user information')
             return True
 
     def save(self):
-        with open(self.saveto, 'w') as f:
+        with open(self.indexFilename, 'w') as f:
             json.dump(self.database, f)
+        with open(self.crFilename, 'wb') as f:
+            pickle.dump(self.chatrooms, f)
 
     def createUser(self, username, password):
         usernamePolicy = '^[0-9a-zA-Z_]{4,16}$'
         passwordPolicy = '^[0-9a-zA-Z_!@#\$%\^&]{8,32}$'
         if re.match(usernamePolicy, username) == None:
-            return None, f'Username Format Error ({usernamePolicy})'
+            self.logger.info(f'createUser : \'{username}\' username policy error')
+            return False, f'Username format error (`{usernamePolicy}`)'
         elif username in self.database:
-            return None, f'User \'{username}\' already existed!'
+            self.logger.info(f'createUser : \'{username}\' already exists')
+            return False, f'User \'{username}\' already exists!'
         elif re.match(passwordPolicy, password) == None:
-            return None, f'Password should match ({passwordPolicy})'
+            self.logger.info(f'createUser : \'{username}\' password policy error')
+            return False, f'Password should match (`{passwordPolicy}`)'
 
         salt = createSalt()
         hashed = hashPassword(password, salt)
         self.database[username] = (salt, hashed)
+        self.chatrooms[username] = set()
         self.save()
+        self.logger.info(f'createUser : \'{username}\' created successfully')
+        return True
 
-    # TODO: change the error message to 'Incorrect username or password :('
     def verifyUser(self, username, password):
         if username not in self.database:
-            return None, f'User \'{username}\' not in database'
+            return False, f'User \'{username}\' not in database'
         salt, hashed = self.database[username]
         if hashPassword(password, salt) != hashed:
-            return None, f'Wrong password'
+            return False, f'Incorrect username of password :('
         else:
             return True
+
+    def addUsersToChatroom(self, users, ID):
+        for u in set(users):
+            self.chatrooms[u].add(ID)
+
+    def getChatroomList(self, user):
+        return list(self.chatrooms[user])
+
 
 def test():
     a = AccountAgent('./.server/user-database.json')
@@ -64,4 +90,6 @@ def test():
     print(a.verifyUser('wjpei', 'asjfkd'))
     print(a.verifyUser('wjpei', 'qwertyuiop'))
     
-test()
+if __name__ == '__main__':
+    test()
+
