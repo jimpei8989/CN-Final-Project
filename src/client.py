@@ -23,7 +23,7 @@ class Client():
         print('=== Register ===')
         username = input('Username: ')
         password = getpass()
-        data = {'type' : 'Registration', 'username' : username, 'password' : password}
+        data = {'type' : 'Register', 'username' : username, 'password' : password}
         self.send(json.dumps(data))
         msg = self.recv()
 

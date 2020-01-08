@@ -24,6 +24,9 @@ o888o        o888o  o888o  `V88V"V8P'     "888" `Y888""8o o888o o888o o888o
 - [CN2019 - Course Website](http://www.cmlab.csie.ntu.edu.tw/~chenyuyang/CN2019)
 - [Final Project - Instruction PPT](https://drive.google.com/file/d/1MXMkCIF5Wo1s1sSk-E8HmbKrYfHdJbiP/view)
 
+### PIP packages
+- `pynput == 1.6.5`: used for keyboard monitoring
+
 ### Progress
 - ...... (Didn't record QQ)
 - 01/05
@@ -34,6 +37,8 @@ o888o        o888o  o888o  `V88V"V8P'     "888" `Y888""8o o888o o888o o888o
         - File transfer method
         - Re-design how to notify the client that there is a new message (now by client request for the last 1000 messages)
         - Client: UI
+- 01/08
+    - Finish client login page
 
 ### Important Dates
 

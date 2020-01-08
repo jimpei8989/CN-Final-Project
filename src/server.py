@@ -55,19 +55,19 @@ class Server():
                 return connectionState[clientSocket][0]
 
         # TODO: Handle Registration (DONE)
-        if data['type'] == 'Registration':
+        if data['type'] == 'Register':
             if clientSocket in connectionState and connectionState[clientSocket] is not None:
-                self.logger.info('handleConnection -> Registration: Please logout first')
+                self.logger.info('handleConnection -> Register: Please logout first')
                 return
             username, password = data['username'], data['password']
             result = self.accountAgent.createUser(username, password)
             if result == True:
                 sendOK()
-                self.logger.info(f'handleConnection -> Registration: \'{username}\' created successfully')
+                self.logger.info(f'handleConnection -> Register: \'{username}\' created successfully')
             else:
                 msg = result[1]
                 sendFail(msg)
-                self.logger.info(f'handleConnection -> Registration: \'{username}\' fail ({msg})')
+                self.logger.info(f'handleConnection -> Register: \'{username}\' fail ({msg})')
 
         # TODO: Handle Login (DONE)
         if data['type'] == 'Login':
