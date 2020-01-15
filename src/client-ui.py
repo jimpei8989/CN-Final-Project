@@ -1,4 +1,5 @@
 import os, sys, time, logging, signal
+import string
 from constants import *
 
 # UI
@@ -10,11 +11,23 @@ import json
 import socket, ssl
 from getpass import getpass
 
+def getInput(screen, r, c, promptString, echo = True, length = 1000):
+    if echo: curses.echo()
+    else: curses.noecho()
+    curses.curs_set(1)
+    screen.addstr(r, c, promptString)
+    screen.refresh()
+    ipt = screen.getstr(r, c + len(promptString), length)
+    curses.noecho()
+    curses.curs_set(0)
+    return ipt.decode('utf-8')
+
 class Client():
-    def __init__(self, screen):
+    def __init__(self, screen, activeWindows):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.screen = screen
         self.username = None
+        self.activeWindows = activeWindows
 
     def connect(self, hostname = 'localhost', port = 2900):
         self.sock.connect((hostname, port))
@@ -26,18 +39,11 @@ class Client():
         return self.sock.recv(MAX_BUFFER_SIZE).decode('UTF-8')
 
     def login(self, relogin = 3):
-        def getInput(screen, r, c, promptString, echo = True):
-            if echo: curses.echo()
-            else: curses.noecho()
-            screen.addstr(r, c, promptString)
-            screen.refresh()
-            ipt = screen.getstr(r, c + len(promptString), 20)
-            curses.noecho()
-            return ipt
-
         screen = self.screen
         nRows, nCols = screen.getmaxyx()
         loginWindow = curses.newwin(nRows, nCols, 0, 0)
+
+        self.activeWindows[loginWindow] = None
         loginWindow.box()
 
         # Show "I-Ru" Banner"
@@ -81,9 +87,8 @@ o888o        o888o  o888o  `V88V"V8P'     "888" `Y888""8o o888o o888o o888o
             else:
                 loginWindow.addstr(usernameBeginRow + 3, (nCols - len(registerMessage)) // 2, registerMessage, curses.A_BLINK)
 
-
-        username = getInput(loginWindow, usernameBeginRow, usernameBeginCol, "Username: ").decode('utf-8')
-        password = getInput(loginWindow, passwordBeginRow, usernameBeginCol, "Password: ", echo = False).decode('utf-8')
+        username = getInput(loginWindow, usernameBeginRow, usernameBeginCol, "Username: ", length = 16)
+        password = getInput(loginWindow, passwordBeginRow, usernameBeginCol, "Password: ", echo = False, length = 20)
 
         # Send packet and check result
         data = {'type' : 'Register', 'username' : username, 'password' : password}
@@ -100,16 +105,18 @@ o888o        o888o  o888o  `V88V"V8P'     "888" `Y888""8o o888o o888o o888o
             if relogin == 1:
                 exit(0)
             else:
-                self.login(relogin = 3 if relogin is False else relogin - 1)
+                del self.activeWindows[loginWindow]
                 del loginWindow
+                self.login(relogin = 3 if relogin is False else relogin - 1)
         else:
+            self.username = username
             loginSuccessMessage = ('Register + ' if resultRegistration else '') + 'Login success! Press any key to continue...'
             loginWindow.addstr(usernameBeginRow + 3, 1, ' ' * (nCols - 2))
             loginWindow.addstr(usernameBeginRow + 3, (nCols - len(loginSuccessMessage)) // 2, loginSuccessMessage)
             loginWindow.getkey()
-            exit(0)
-
-
+            del self.activeWindows[loginWindow]
+            del loginWindow
+    
     def createChatroom(self):
         name = input('Chatroom Name: ')
         people = input('Talking With: ').split(', ')[0]
@@ -119,26 +126,6 @@ o888o        o888o  o888o  `V88V"V8P'     "888" `Y888""8o o888o o888o o888o
         ID = msg.split('|')[1]
         return ID
 
-    def getChatroomList(self, verbose = True):
-        data = {'type' : 'GetChatroomList'}
-        self.send(json.dumps(data))
-        msg = self.recv()
-        self.chatroomList = set(sorted(json.loads(msg.split('|')[1])))
-        if verbose:
-            os.system("clear")
-            print('### Chatroom List ###')
-            print('\n'.join(ID for ID in self.chatroomList))
-            print('#####################')
-
-    def getChatHistory(self, ID):
-        data = {'type' : 'GetChatHistory', 'ID' : ID}
-        self.send(json.dumps(data))
-        msg = self.recv()
-        history = json.loads(msg.split('|')[1])
-        os.system("clear")
-        for chat in history:
-            print(f'''{chat['sender']} ({chat['timestamp'].split(' ')[1]}): {chat['text']}''')
-
     def chat(self, ID):
         text = input(f'{self.username}> ')
         data = {'type' : 'Messaging', 'ID' : ID, 'text' : text}
@@ -146,20 +133,203 @@ o888o        o888o  o888o  `V88V"V8P'     "888" `Y888""8o o888o o888o o888o
         msg = self.recv()
 
     def start(self):
-        pass
+        # Get screen size and define pad size
+        nRows, nCols = self.screen.getmaxyx()
+        verticalCut = int(0.3 * nCols)
+        horizontalCut = int(0.85 * nRows)
 
+        # create main window
+        mainWindow = curses.newwin(nRows, nCols, 0, 0)
+        self.activeWindows[mainWindow] = None
 
+        def displayFramework():
+            mainWindow.box()
+            mainWindow.addch(0, verticalCut, curses.ACS_TTEE)
+            mainWindow.vline(1, verticalCut, curses.ACS_VLINE, nRows - 2)
+            mainWindow.addch(nRows - 1, verticalCut, curses.ACS_BTEE)
+            mainWindow.addch(horizontalCut, verticalCut, curses.ACS_LTEE)
+            mainWindow.hline(horizontalCut, verticalCut + 1, curses.ACS_HLINE, nCols - verticalCut - 2)
+            mainWindow.addch(horizontalCut, nCols - 1, curses.ACS_RTEE)
+
+        displayFramework()
+        mainWindow.refresh()
+
+        # create left pad
+        leftPad = curses.newpad(1000, nCols)
+        self.activeWindows[leftPad] = (0, 0, 1, 1, nRows - 2, verticalCut - 1)
+        leftPadWidth = verticalCut - 1  # [1, verticalCut - 1] (0-based)
+        leftPadHeight = nRows - 2       # [1, nRows - 2] (0-based)
+
+        def getChatroomList():
+            data = {'type' : 'GetChatroomList'}
+            self.send(json.dumps(data))
+            msg = self.recv()
+            self.chatroomList = set(sorted(json.loads(msg.split('|')[1])))
+            return self.chatroomList
+
+        def displayChatroomList(chatroomList):
+            # chatroomList is a list of 3-tuple of strings (ID, name, icon)
+            rowCount = 0
+            for i, c in enumerate(chatroomList):
+                if i != 0:
+                    leftPad.addstr(rowCount, 0, '-' * leftPadWidth)
+                    rowCount += 1
+                leftPad.addstr(rowCount, 0, f'[{i:2d}] {c[2]} - {c[1]}')
+                leftPad.addstr(rowCount + 1, 0, f'{c[0]}')
+                rowCount += 2
+            leftPad.refresh(0, 0, 1, 1, nRows - 2, verticalCut - 1)
+
+        #  displayChatroomList([("d4f37de8202944c89fe4aadcb9e27882", "HAHA", "😀"), ("8a4f6e74134b4cce96f8aa611d0b8f22", "love", "💕"), ("c7326620491b4231be408ca4e26fe871", "final exam", "😢")] * 3)
+
+        # create chat pad
+        chatPad = curses.newpad(1000, nCols)
+        self.activeWindows[chatPad] = (0, 0, 1, verticalCut + 1, horizontalCut - 1, nCols - 1)
+        chatPadWidth = nCols - verticalCut - 1
+        chatPadHeight = horizontalCut - 1
+        widthPerLine = int(chatPadWidth * 0.5)
+
+        def getChats(name):
+            data = {'type' : 'GetChatHistory', 'name' : name}
+            self.send(json.dumps(data))
+            msg = self.recv()
+            chats = json.loads(msg.split('|')[1])
+            return chats
+
+        def displayChat(chats):
+        # chats is a list of (sender, senderIcon, type, data, time)
+            rowCount = 0
+            def alignLeft(header, lines):
+                nonlocal rowCount
+                chatPad.addstr(rowCount, 0, header)
+                rowCount += 1
+                for line in lines:
+                    chatPad.addstr(rowCount, 0, line)
+                    rowCount += 1
+                rowCount += 1
+            def alignRight(header, lines):
+                nonlocal rowCount
+                chatPad.addstr(rowCount, chatPadWidth - len(header) - 2, header)
+                rowCount += 1
+                for line in lines:
+                    chatPad.addstr(rowCount, chatPadWidth - len(line) - 2, line)
+                    rowCount += 1
+                rowCount += 1
+            for chat in chats:
+                sender, icon, typee, data, time = chat
+                displayHeader = f'{icon} [{sender}] at {time}'
+                if sender == self.username:
+                    if typee == 'text':
+                        displayText = [data[i : i + widthPerLine] + ' <<<' for i in range(0, len(data), widthPerLine)]
+                    elif typee == 'file':
+                        displayText = [f'FILE : "{data}" <~~']
+                    alignRight(displayHeader, displayText)
+                else:
+                    if typee == 'text':
+                        displayText = ['>>> ' + data[i : i + widthPerLine] for i in range(0, len(data), widthPerLine)]
+                    elif typee == 'file':
+                        displayText = [f'~~> FILE : "{data}"']
+                    alignLeft(displayHeader, displayText)
+            chatPad.refresh(0 if rowCount < chatPadHeight else rowCount - chatPadHeight, 0, 1, verticalCut + 1, horizontalCut - 1, nCols - 2)
+
+        def displayPusheen():
+            pusheen = '''
+i    ▐▀▄       ▄▀▌   ▄▄▄▄▄▄▄             
+    ▌▒▒▀▄▄▄▄▄▀▒▒▐▄▀▀▒██▒██▒▀▀▄          
+   ▐▒▒▒▒▀▒▀▒▀▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▀▄        
+   ▌▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▄▒▒▒▒▒▒▒▒▒▒▒▒▀▄      
+ ▀█▒▒▒█▌▒▒█▒▒▐█▒▒▒▀▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▌     
+ ▀▌▒▒▒▒▒▒▀▒▀▒▒▒▒▒▒▀▀▒▒▒▒▒▒▒▒▒▒▒▒▒▒▐   ▄▄
+ ▐▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▌▄█▒█
+ ▐▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒█▒█▀ 
+ ▐▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒█▀   
+ ▐▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▌    
+  ▌▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▐     
+  ▐▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▌     
+   ▌▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▐      
+   ▐▄▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▄▌      
+     ▀▄▄▀▀▀▀▀▄▄▀▀▀▀▀▀▀▄▄▀▀▀▀▀▄▄▀  
+'''[1:-1].split('\n')
+            width = max(len(l) for l in pusheen)
+            height = len(pusheen)
+            for i, line in enumerate(pusheen):
+                chatPad.addstr(horizontalCut - height  - 2 + i, (chatPadWidth - width) // 2, line) 
+            chatPad.refresh(0, 0, 1, verticalCut + 1, horizontalCut - 1, nCols - 2)
+
+        #  displayChat([(f'{self.username}', '🙃', 'text', 'Hi!', '2020/01/12 00:01:50'), ('dylan', '🤠', 'text', 'Hello', '2020/01/12 00:01:59'), ('howard', '😖', 'text', 'Ni nei nei deeee', '2020/01/12 00:02:13'), ('devin', '👽', 'text', 'wwwwwwwwwwwwwwwwwwwwwww', '2020/01/12 00:03:20'), (f'{self.username}', '🙃', 'text', 'a' * 200, '2020/01/12 00:01:50'), ('dylan', '🤠', 'text', 'b' * 100, '2020/01/12 00:01:59'), ('howard', '😖', 'text', 'c' * 150, '2020/01/12 00:02:13'), ('devin', '👽', 'text', 'd' * 20, '2020/01/12 00:03:20'), (f'{self.username}', '🙃', 'file', 'file.txt', '2020/01/12 00:05:50'), ('dylan', '🤠', 'file', 'pornhub.mov', '2020/01/12 00:11:03')] * 3)
+
+        textWidth = nCols - verticalCut - 2
+        textHeight = nRows - horizontalCut - 2
+        currentChatroom = None
+        mode = 'ctrl'
+        buf = 'a' * 500
+        while True:
+            # Display left pad
+            chatroomList = getChatroomList()
+            displayChatroomList(chatroomList)
+
+            # Display chat pad
+            if currentChatroom is not None:
+                chats = getChats(currentChatroom)
+                displayChat(chats)
+            else:
+                displayPusheen()
+
+            # Display mode
+            mainWindow.addstr(horizontalCut, verticalCut + 3, f'({mode:4s})')
+
+            key = mainWindow.getkey()
+            # Get input
+            if mode == 'ctrl':
+                if key == ':':
+                    commands = getInput(mainWindow, horizontalCut + 1, verticalCut + 1, ':', True, length = textWidth).split(' ')
+                    mainWindow.addstr(horizontalCut + 2, verticalCut + 1, commands)
+
+                    command = commands[0]
+                    if command == 'help' or command == 'h':
+                        # Display help message
+                        pass
+
+                    elif command == 'create' or command == 'c':
+                        name = commands[1]
+                        mates = commands[2].split(',')
+                        data = {'type' : 'CreateChatroom', 'name' : name, 'admins' : [self.username, mates], 'members' : [self.username, mates]}
+                        self.send(json.dumps(data))
+                        msg = self.recv()
+                        verdit = msg.split('|')
+
+                    elif command == 'enter' or command == 'e':
+                        namd = commands[1]
+                        pass
+
+                    elif command == 'savefile':
+                        filena
+
+                    elif command == 'exit' or command == 'q':
+                        currentChatroom = None
+
+                elif key in string.printable:
+                    if currentChatroom is not None or True:
+                        mode = 'text'
+                        buf = key
+
+            elif mode == 'text':
+                if key == chr(27):   # esc
+                    buf = ''
+                    mode = 'ctrl'
+                elif key == chr(10): #enter
+                    pass
+                elif key in string.printable:
+                    buf = buf + key
+
+            lines = [buf[i : i + textWidth] for i in range(0, len(buf), textWidth)]
+            for i, l in enumerate(lines[-textHeight:]):
+                mainWindow.addstr(horizontalCut + 1 + i, verticalCut + 1, l)
+
+            mainWindow.refresh()
 
 
 def main(screen):
-    # Referene: https://pythonhosted.org/pynput/keyboard.html
-    class ReleaseKeyException(Exception): pass
-
-    def on_release(key):
-        pressedKey = key
-        if key == keyboard.KeyCode(char = 'q') or key == keyboard.Key.esc:
-            raise ReleaseKeyException(key)
-
+    activeWindows = dict()
     def handler(signum, frame):
         nRows, nCols = screen.getmaxyx()
         height, width = 10, 32
@@ -171,18 +341,18 @@ def main(screen):
             quitWindow.addstr((height - len(quitMessages)) // 2 + i, (width - len(m)) // 2, m)
         quitWindow.refresh()
 
-        with keyboard.Listener(on_release = on_release) as listener:
-            try:
-                listener.join()
-            except ReleaseKeyException as e:
-                pressedKey = e.args[0]
-                if pressedKey == keyboard.KeyCode(char = 'q'):
-                    # Start destroy self
-                    exit(0)
-                else:
-                    del quitWindow
-                    # TODO: restore windows
-                    screen.refresh()
+        curses.noecho()
+        while True:
+            key = quitWindow.getkey()
+            if key == 'q':
+                exit(0)
+            elif key == '\x1b':
+                for win in activeWindows:
+                    if activeWindows[win] is None:  # is a window
+                        win.redrawwin()
+                        win.refresh()
+                    else:                           # is a pad
+                        win.refresh(*activeWindows[win])
 
     # Handle signal
     signal.signal(signal.SIGINT, handler)
@@ -192,24 +362,18 @@ def main(screen):
                         filemode = 'w',
                         )
 
-    client = Client(screen)
+    # curses settings
+    curses.noecho()
+    curses.curs_set(0)
+
+    client = Client(screen, activeWindows)
     client.connect()
 
+    # Register / Login
     client.login(False)
-    return
 
-    client.getChatroomList()
-    while True:
-        cr = input("Enter which chatroom (Type 'create' to create a new one): ")
-        if cr == 'create':
-            ID = client.createChatroom()
-            client.getChatroomList(False)
-        else:
-            client.getChatHistory(cr)
-            break
-    while True:
-        client.chat(cr)
-        client.getChatHistory(cr)
+    # Start
+    client.start()
 
 if __name__ == '__main__':
     curses.wrapper(main)
