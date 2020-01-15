@@ -90,12 +90,9 @@ class Server():
         if data['type'] == 'CreateChatroom':
             user = getUser()
             if user is not None:
-                name, admins, members = data['name'], data['admins'], data['members']
-                if user not in admins or user not in members:
-                    sendFail('You have to be in both admins and members')
-                    return
-                result, ID = self.chatroomMgr.createChatroom(user, name, admins, members)
-                self.accountAgent.addUsersToChatroom(admins + members, ID)
+                name, icon, admins, members = data['name'], data['icon'], data['admins'], data['members']
+                result, msg = self.chatroomMgr.createChatroom(name, icon, admins + [user], members + [user])
+                self.accountAgent.addUsersToChatroom(admins + members + [user], ID)
                 self.logger.info(f'handleConnection -> CreateChatroom: chatroom [{ID}]({name}) created by \'{user}\' successfully')
                 sendOK(ID)
 
@@ -112,34 +109,55 @@ class Server():
 
         # TODO: Add member / Kick member
 
-        # TODO: Handle Messaging
-        if data['type'] == 'Messaging':
-            user = getUser()
-            print(user)
-            ID, text = data['ID'], data['text']
-            if ID in self.chatroomMgr.chatrooms and self.chatroomMgr.chatrooms[ID].isMember(user):
-                timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                chat = {'sender': user, 'timestamp': timestamp, 'text': text}
-                self.chatroomMgr.chatrooms[ID].appendChat(chat)
-                sendOK()
-                self.logger.debug(f'handleConnection -> Messaging: \'{user}\' texted\n\t\t\t{text}\n\t\tin [{ID}]')
-            else:
-                sendFail('Permission Error')
-
         # TODO: Get Chat History
         if data['type'] == 'GetChatHistory':
             user = getUser()
-            ID, size = data['ID'], data['size'] if 'size' in data else 1000
-            if ID not in self.chatroomMgr.chatrooms:
+            name, size = data['name'], data['size'] if 'size' in data else 1000
+            if name not in self.chatroomMgr.chatrooms:
                 sendFail('Query ID wrong')
-            elif not self.chatroomMgr.chatrooms[ID].isMember(user):
+            elif not self.chatroomMgr.chatrooms[name].isMember(user):
                 sendFail('Permission Error')
             else:
-                history = self.chatroomMgr.chatrooms[ID].getChatHistory(size)
+                history = self.chatroomMgr.chatrooms[name].getChatHistory(size)
                 sendOK(json.dumps(history))
                 self.logger.debug(f'handleConnection -> GetChatHistory: \'{user}\' queried chatroom [{ID}]')
 
-        # TODO: Handle File Transfer
+        # TODO: Handle Messaging
+        if data['type'] == 'Messaging':
+            user = getUser()
+            name, text = data['name'], data['text']
+            if name in self.chatroomMgr.chatrooms and self.chatroomMgr.chatrooms[name].isMember(user):
+                timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                self.chatroomMgr.chatrooms[name].appendChat(sender, None, text, timestamp)
+                sendOK()
+                self.logger.debug(f'handleConnection -> Messaging: \'{user}\' texted\n\t\t\t{text}\n\t\tin [{name}]')
+            else:
+                sendFail('Permission Error')
+
+        # TODO: Handle Upload File
+        if data['type'] == 'UploadFile':
+            user = getUser()
+            name, filename, content = data['name'], data['filename'], data['content']
+            if name in self.chatroomMgr.chatrooms and self.chatroomMgr.chatrooms[name].isMember(user):
+                timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                self.chatroomMgr.chatrooms[name].addFile(sender, None, filename, content, timestamp)
+                sendOK()
+                self.logger.debug(f'handleConnection -> UploadFile: \'{user}\' texted\n\t\t\t{text}\n\t\tin [{name}]')
+            else:
+                sendFail('Permission Error')
+
+        # TODO: Handle Download File
+        if data['type'] == 'DownloadFile':
+            user = getUser()
+            name, filename= data['name'], data['filename']
+            if name in self.chatroomMgr.chatrooms and self.chatroomMgr.chatrooms[name].isMember(user):
+                content = self.chatroomMgr.chatrooms[name].getFile(filename)
+                if content is None:
+                    sendFail('File not found')
+                else:
+                    sendOK(content)
+            else:
+                sendFail('Permission Error')
 
     def start(self, timeout = None, maxNumOfConnections = 1024):
         self.sock.listen(maxNumOfConnections)

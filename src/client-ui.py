@@ -4,7 +4,6 @@ from constants import *
 
 # UI
 import curses
-from pynput import keyboard
 
 # Exchange
 import json
@@ -289,6 +288,7 @@ i    ▐▀▄       ▄▀▌   ▄▄▄▄▄▄▄
                         # Display help message
                         pass
 
+                    #TODO
                     elif command == 'create' or command == 'c':
                         name = commands[1]
                         mates = commands[2].split(',')
@@ -297,12 +297,18 @@ i    ▐▀▄       ▄▀▌   ▄▄▄▄▄▄▄
                         msg = self.recv()
                         verdit = msg.split('|')
 
+                    #TODO
                     elif command == 'enter' or command == 'e':
                         namd = commands[1]
                         pass
 
-                    elif command == 'savefile':
-                        filena
+                    #TODO
+                    elif command == 'download':
+                        pass
+
+                    #TODO
+                    elif command == 'upload':
+                        pass
 
                     elif command == 'exit' or command == 'q':
                         currentChatroom = None
