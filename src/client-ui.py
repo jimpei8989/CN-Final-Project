@@ -262,11 +262,11 @@ Type :help to get more instructions
 
         def displayHelpMessage():
             message = '''
-There are three modes, `ctrl`, `help` and `text` modes.
+There are three modes, `ctrl`, `help` and `text`.
 In `ctrl` mode:
-    > you first press a ':' and then enter a command:
+    > press ':' and then enter a command:
         - help
-            enter this page
+            print this message
 
         - create CHATROOM_NAME CHATROOM_ICON CHATROOM_MEMBERS
             create a chatroom
@@ -286,16 +286,16 @@ In `ctrl` mode:
         - exit
             exit the chatroom
 
-    > Or enter any printable ascii to go into `text` mode
+    > Or enter any printable ascii to enter `text` mode
         **YOU MUST NEED TO BE IN A CHATROOM TO PERFORM THIS**
         
 In `help` mode:
-    - Press `q` to exit
+    - press 'q' to exit
 
 In `text` mode:
-    - type ascii printable characters to type
-    - press `enter` to send message
-    - press `esc` to go into `ctrl` mode
+    - form your message with any printable characters
+    - press '<ENTER>' to send the message
+    - press '<ESC>' to enter `ctrl` mode
 '''[1:-1].split('\n')
             height = len(message)
 
@@ -338,17 +338,21 @@ In `text` mode:
                         mode = 'help'
 
                     elif command == 'create' or command == 'c':
-                        name = commands[1]
-                        icon = commands[2]
-                        mates = commands[3].split(',')
-                        data = {'type' : 'CreateChatroom',
-                                'name' : name,
-                                'icon' : icon,
-                                'admins' : [self.username] + mates,
-                                'members' : [self.username] + mates}
-                        self.send(json.dumps(data))
-                        msg = self.recv()
-                        verdit = msg.split('|')
+                        try:
+                            name = commands[1]
+                            icon = commands[2]
+                            mates = [mate.strip() for mate in commands[3].split(',')]
+                            data = {'type' : 'CreateChatroom',
+                                    'name' : name,
+                                    'icon' : icon,
+                                    'admins' : [self.username] + mates,
+                                    'members' : [self.username] + mates}
+                            self.send(json.dumps(data))
+                            msg = self.recv()
+                            verdict = msg.split('|')
+                        except:
+                            pass
+
 
                     #TODO
                     elif command == 'enter' or command == 'e':
@@ -379,8 +383,8 @@ In `text` mode:
                                     'filename' : filename}
                             self.send(json.dumps(data))
                             msg = self.recv()
-                            verdit = msg.split('|')[0]
-                            if verdit == 'OK':
+                            verdict = msg.split('|')[0]
+                            if verdict == 'OK':
                                 content = msg.split('|')[1]
                                 with open(os.path.expanduser(os.path.join('~', 'Downloads', filename)), 'wb') as f:
                                     f.write(base64.b64decode(content))
@@ -391,7 +395,7 @@ In `text` mode:
                                 'icon' : icon}
                         self.send(json.dumps(data))
                         msg = self.recv()
-                        verdit = msg.split('|')[0]
+                        verdict = msg.split('|')[0]
 
                     elif command == 'exit' or command == 'q':
                         currentChatroom = None
@@ -417,7 +421,7 @@ In `text` mode:
                                 'text' : buf}
                         self.send(json.dumps(data))
                         msg = self.recv()
-                        verdit = msg.split('|')
+                        verdict = msg.split('|')
                         buf = ''
                 elif key == chr(127):  # Backspace
                     buf = buf[:-1] if len(buf) > 0 else buf
@@ -444,7 +448,7 @@ def main(screen):
         quitWindow = curses.newwin(height, width, (nRows - height) // 2, (nCols - width) // 2)
         quitWindow.box()
 
-        quitMessages = ['Press <q> to quit', 'Press <ESC> to continue']
+        quitMessages = ["Press 'q' to quit", "Press '<ESC>' to continue"]
         for i, m in enumerate(quitMessages):
             quitWindow.addstr((height - len(quitMessages)) // 2 + i, (width - len(m)) // 2, m)
         quitWindow.refresh()
