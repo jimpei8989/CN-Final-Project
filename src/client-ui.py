@@ -179,8 +179,6 @@ o888o        o888o  o888o  `V88V"V8P'     "888" `Y888""8o o888o o888o o888o
                 rowCount += 2
             leftPad.refresh(0, 0, 1, 1, nRows - 2, verticalCut - 1)
 
-        #  displayChatroomList([("d4f37de8202944c89fe4aadcb9e27882", "HAHA", "😀"), ("8a4f6e74134b4cce96f8aa611d0b8f22", "love", "💕"), ("c7326620491b4231be408ca4e26fe871", "final exam", "😢")] * 3)
-
         # create chat pad
         chatPad = curses.newpad(1000, nCols)
         self.activeWindows[chatPad] = (0, 0, 1, verticalCut + 1, horizontalCut - 1, nCols - 1)
@@ -306,8 +304,6 @@ In `text` mode:
                 chatPad.addstr(i, 0, line) 
             chatPad.refresh(0, 0, 1, verticalCut + 1, horizontalCut - 1, nCols - 2)
 
-        #  displayChat([(f'{self.username}', '🙃', 'text', 'Hi!', '2020/01/12 00:01:50'), ('dylan', '🤠', 'text', 'Hello', '2020/01/12 00:01:59'), ('howard', '😖', 'text', 'Ni nei nei deeee', '2020/01/12 00:02:13'), ('devin', '👽', 'text', 'wwwwwwwwwwwwwwwwwwwwwww', '2020/01/12 00:03:20'), (f'{self.username}', '🙃', 'text', 'a' * 200, '2020/01/12 00:01:50'), ('dylan', '🤠', 'text', 'b' * 100, '2020/01/12 00:01:59'), ('howard', '😖', 'text', 'c' * 150, '2020/01/12 00:02:13'), ('devin', '👽', 'text', 'd' * 20, '2020/01/12 00:03:20'), (f'{self.username}', '🙃', 'file', 'file.txt', '2020/01/12 00:05:50'), ('dylan', '🤠', 'file', 'pornhub.mov', '2020/01/12 00:11:03')] * 3)
-
         textWidth = nCols - verticalCut - 2
         textHeight = nRows - horizontalCut - 2
         currentChatroom = None
@@ -363,9 +359,9 @@ In `text` mode:
                     #TODO
                     elif command == 'upload':
                         if currentChatroom is not None:
-                            filename = commands[1]
+                            filename = os.path.expanduser(commands[1])
                             with open(filename, 'rb') as f:
-                                content = base64.b64encode(f.read())
+                                content = base64.b64encode(f.read()).decode()
                             head, tail = os.path.split(filename)
                             data = {'type' : 'UploadFile',
                                     'name' : currentChatroom,
@@ -378,7 +374,7 @@ In `text` mode:
                     elif command == 'download':
                         if currentChatroom is not None:
                             filename = commands[1]
-                            data = {'type' : 'UploadFile',
+                            data = {'type' : 'DownloadFile',
                                     'name' : currentChatroom,
                                     'filename' : filename}
                             self.send(json.dumps(data))
@@ -386,8 +382,8 @@ In `text` mode:
                             verdit = msg.split('|')[0]
                             if verdit == 'OK':
                                 content = msg.split('|')[1]
-                                with open(os.path.join('~', 'Downloads', filename), 'wb') as f:
-                                    f.write(base64.b64decode(f.read()))
+                                with open(os.path.expanduser(os.path.join('~', 'Downloads', filename)), 'wb') as f:
+                                    f.write(base64.b64decode(content))
 
                     elif command == 'updateIcon':
                         icon = commands[1]
