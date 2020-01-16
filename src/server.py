@@ -36,6 +36,7 @@ class Server():
         for trials in range(10):
             try:
                 self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 self.sock.bind((hostname, port))
                 self.sock.setblocking(0)
             except socket.error as msg:
@@ -253,7 +254,6 @@ def main():
     def handler(signum, frame):
         # TODO: saveall
         server.saveall()
-        server.sock.close()
         exit(0)
 
     signal.signal(signal.SIGINT, handler)
