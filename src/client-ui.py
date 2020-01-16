@@ -382,7 +382,7 @@ In `text` mode:
                     elif command == 'download':
                         if currentChatroom is not None:
                             filename = commands[1]
-                            data = {'type' : 'UploadFile',
+                            data = {'type' : 'DownloadFile',
                                     'name' : currentChatroom,
                                     'filename' : filename}
                             self.send(json.dumps(data))
@@ -483,7 +483,10 @@ def main(screen):
     curses.curs_set(0)
 
     client = Client(screen, activeWindows)
-    client.connect()
+    if len(sys.argv) > 1:
+        client.connect(port = int(sys.argv[1]))
+    else:
+        client.connect()
 
     # Register / Login
     client.login(False)

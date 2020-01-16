@@ -154,9 +154,9 @@ class Server():
             name, filename, content = data['name'], data['filename'], data['content']
             if name in self.chatroomMgr.chatrooms and self.chatroomMgr.chatrooms[name].isMember(user):
                 timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                self.chatroomMgr.chatrooms[name].addFile(sender, None, filename, content, timestamp)
+                self.chatroomMgr.chatrooms[name].addFile(user, None, filename, content, timestamp)
                 sendOK()
-                self.logger.debug(f'handleConnection -> UploadFile: \'{user}\' texted\n\t\t\t{text}\n\t\tin [{name}]')
+                self.logger.debug(f'handleConnection -> UploadFile: \'{user}\' uploaded\n\t\t\t{filename}\n\t\tin [{name}]')
             else:
                 sendFail('Permission Error')
 
@@ -228,8 +228,10 @@ class Server():
 
 def main():
     # TODO: server config
-    server = Server()
-
+    if len(sys.argv) > 1:
+        server = Server(port = int(sys.argv[1]))
+    else:
+        server = Server()
     def handler(signum, frame):
         # TODO: saveall
         server.saveall()
