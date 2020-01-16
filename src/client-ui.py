@@ -264,11 +264,11 @@ Type :help to get more instructions
 
         def displayHelpMessage():
             message = '''
-There are three modes, `ctrl`, `help` and `text` modes.
+There are three modes, `ctrl`, `help` and `text`.
 In `ctrl` mode:
-    > you first press a ':' and then enter a command:
+    > press ':' and then enter a command:
         - help
-            enter this page
+            print this message
 
         - create CHATROOM_NAME CHATROOM_ICON CHATROOM_MEMBERS
             create a chatroom
@@ -288,16 +288,16 @@ In `ctrl` mode:
         - exit
             exit the chatroom
 
-    > Or enter any printable ascii to go into `text` mode
+    > Or enter any printable ascii to enter `text` mode
         **YOU MUST NEED TO BE IN A CHATROOM TO PERFORM THIS**
         
 In `help` mode:
-    - Press `q` to exit
+    - press 'q' to exit
 
 In `text` mode:
-    - type ascii printable characters to type
-    - press `enter` to send message
-    - press `esc` to go into `ctrl` mode
+    - form your message with any printable characters
+    - press '<ENTER>' to send the message
+    - press '<ESC>' to enter `ctrl` mode
 '''[1:-1].split('\n')
             height = len(message)
 
