@@ -334,9 +334,8 @@ In `text` mode:
 
                     elif command == 'create' or command == 'c':
                         try:
+                            name, icon = commands[1], commands[2]
                             if name[0] in string.ascii_letters:
-                                name = commands[1]
-                                icon = commands[2]
                                 mates = [mate.strip() for mate in commands[3].split(',')]
                                 data = {'type' : 'CreateChatroom',
                                         'name' : name,
