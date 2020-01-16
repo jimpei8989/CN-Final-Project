@@ -1,4 +1,5 @@
 import os, sys, time, datetime, logging
+import signal
 import json
 import socket, selectors
 from threading import Thread
@@ -31,15 +32,21 @@ class Server():
         self.chatroomMgr.load()
 
         # Socket - create and bind
-        try:
-            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.sock.bind((hostname, port))
-            self.sock.setblocking(0)
-        except socket.error as msg:
-            self.logger.info(f'✘ [Init Server Socket] : {msg}')
-            exit(-1)
-        else:
-            self.logger.info('✓ [Init Server Socket]')
+        for trials in range(10):
+            try:
+                self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.sock.bind((hostname, port))
+                self.sock.setblocking(0)
+            except socket.error as msg:
+                self.logger.info(f'✘ [Init Server Socket] : {msg}')
+                time.sleep(1)
+            else:
+                self.logger.info('✓ [Init Server Socket]')
+                return 
+        exit(-1)
+    def saveall(self):
+        self.accountAgent.save()
+        self.chatroomMgr.save()
 
     def handleConnection(self, data, clientSocket, clientIP, clientPort, connectionState):
         def sendOK(msg = ''):
@@ -91,15 +98,20 @@ class Server():
             user = getUser()
             if user is not None:
                 name, icon, admins, members = data['name'], data['icon'], data['admins'], data['members']
-                result, msg = self.chatroomMgr.createChatroom(name, icon, admins + [user], members + [user])
-                self.accountAgent.addUsersToChatroom(admins + members + [user], ID)
-                self.logger.info(f'handleConnection -> CreateChatroom: chatroom [{ID}]({name}) created by \'{user}\' successfully')
-                sendOK(ID)
+                ret = self.chatroomMgr.createChatroom(name, icon, admins + [user], members + [user])
+                if ret is True:
+                    self.accountAgent.addUsersToChatroom(admins + members + [user], name)
+                    self.logger.info(f'handleConnection -> CreateChatroom: chatroom {name} created by \'{user}\' successfully')
+                    sendOK()
+                else:
+                    sendFail(ret[1])
 
         # TODO: Get User Chatrooms
         if data['type'] == 'GetChatroomList':
             user = getUser()
             chatroomList = self.accountAgent.getChatroomList(user)
+            chatroomList = sorted([self.chatroomMgr.getMetadata(c) for c in chatroomList], key = lambda k : k[2], reverse = True)
+            print(json.dumps(chatroomList))
             sendOK(json.dumps(chatroomList))
             self.logger.info(f'handleConnection -> GetUserChatroomList: user \'{user}\' queried successfully')
             
@@ -114,13 +126,14 @@ class Server():
             user = getUser()
             name, size = data['name'], data['size'] if 'size' in data else 1000
             if name not in self.chatroomMgr.chatrooms:
-                sendFail('Query ID wrong')
+                sendFail('Query chatroom name wrong')
             elif not self.chatroomMgr.chatrooms[name].isMember(user):
                 sendFail('Permission Error')
             else:
                 history = self.chatroomMgr.chatrooms[name].getChatHistory(size)
+                print(history)
                 sendOK(json.dumps(history))
-                self.logger.debug(f'handleConnection -> GetChatHistory: \'{user}\' queried chatroom [{ID}]')
+                self.logger.debug(f'handleConnection -> GetChatHistory: \'{user}\' queried chatroom')
 
         # TODO: Handle Messaging
         if data['type'] == 'Messaging':
@@ -128,7 +141,7 @@ class Server():
             name, text = data['name'], data['text']
             if name in self.chatroomMgr.chatrooms and self.chatroomMgr.chatrooms[name].isMember(user):
                 timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                self.chatroomMgr.chatrooms[name].appendChat(sender, None, text, timestamp)
+                self.chatroomMgr.chatrooms[name].addChat(user, None, text, timestamp)
                 sendOK()
                 self.logger.debug(f'handleConnection -> Messaging: \'{user}\' texted\n\t\t\t{text}\n\t\tin [{name}]')
             else:
@@ -184,7 +197,7 @@ class Server():
                         try:
                             iptBytes = connection.recv(MAX_BUFFER_SIZE)
                             if iptBytes:
-                                data = json.loads(iptBytes.decode('utf-8').strip()) # A string
+                                data = json.loads(iptBytes.decode('utf-8')) # A string
                                 print(f'{data}')
                                 newThread = Thread(target = self.handleConnection,
                                                    args = (data, connection, clientIP, clientPort, connectionState)
@@ -201,15 +214,24 @@ class Server():
                             if connection in connectionState:
                                 del connectionState[connection]
                         except json.decoder.JSONDecodeError:
+                            print(iptBytes)
                             self.logger.warning(f'JSON Decodes error')
 
         self.sock.close()
 
 def main():
     # TODO: server config
-
     server = Server()
+
+    def handler(signum, frame):
+        # TODO: saveall
+        server.saveall()
+        exit(0)
+
+    signal.signal(signal.SIGINT, handler)
+
     server.start()
+
 
 if __name__ == '__main__':
     main()

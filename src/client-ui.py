@@ -1,4 +1,5 @@
 import os, sys, time, logging, signal
+import base64
 import string
 from constants import *
 
@@ -163,17 +164,17 @@ o888o        o888o  o888o  `V88V"V8P'     "888" `Y888""8o o888o o888o o888o
             data = {'type' : 'GetChatroomList'}
             self.send(json.dumps(data))
             msg = self.recv()
-            self.chatroomList = set(sorted(json.loads(msg.split('|')[1])))
+            self.chatroomList = set(map(tuple, sorted(json.loads(msg.split('|')[1]))))
             return self.chatroomList
 
         def displayChatroomList(chatroomList):
-            # chatroomList is a list of 3-tuple of strings (ID, name, icon)
+            # chatroomList is a list of 3-tuple of strings (name, icon, last ts)
             rowCount = 0
             for i, c in enumerate(chatroomList):
                 if i != 0:
                     leftPad.addstr(rowCount, 0, '-' * leftPadWidth)
                     rowCount += 1
-                leftPad.addstr(rowCount, 0, f'[{i:2d}] {c[2]} - {c[1]}')
+                leftPad.addstr(rowCount, 0, f'[{i:2d}] {c[1]} - {c[0]}')
                 leftPad.addstr(rowCount + 1, 0, f'{c[0]}')
                 rowCount += 2
             leftPad.refresh(0, 0, 1, 1, nRows - 2, verticalCut - 1)
@@ -195,7 +196,8 @@ o888o        o888o  o888o  `V88V"V8P'     "888" `Y888""8o o888o o888o o888o
             return chats
 
         def displayChat(chats):
-        # chats is a list of (sender, senderIcon, type, data, time)
+            # chats is a list of (sender, senderIcon, type, data, time)
+            chatPad.erase()
             rowCount = 0
             def alignLeft(header, lines):
                 nonlocal rowCount
@@ -232,7 +234,11 @@ o888o        o888o  o888o  `V88V"V8P'     "888" `Y888""8o o888o o888o o888o
 
         def displayPusheen():
             pusheen = '''
-i    ▐▀▄       ▄▀▌   ▄▄▄▄▄▄▄             
+Type :help to get more instructions
+
+
+
+     ▐▀▄       ▄▀▌   ▄▄▄▄▄▄▄             
     ▌▒▒▀▄▄▄▄▄▀▒▒▐▄▀▀▒██▒██▒▀▀▄          
    ▐▒▒▒▒▀▒▀▒▀▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▀▄        
    ▌▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▄▒▒▒▒▒▒▒▒▒▒▒▒▀▄      
@@ -250,8 +256,54 @@ i    ▐▀▄       ▄▀▌   ▄▄▄▄▄▄▄
 '''[1:-1].split('\n')
             width = max(len(l) for l in pusheen)
             height = len(pusheen)
+
+            chatPad.erase()
             for i, line in enumerate(pusheen):
                 chatPad.addstr(horizontalCut - height  - 2 + i, (chatPadWidth - width) // 2, line) 
+            chatPad.refresh(0, 0, 1, verticalCut + 1, horizontalCut - 1, nCols - 2)
+
+        def displayHelpMessage():
+            message = '''
+There are three modes, `ctrl`, `help` and `text` modes.
+In `ctrl` mode:
+    > you first press a ':' and then enter a command:
+        - help
+            enter this page
+
+        - create CHATROOM_NAME CHATROOM_ICON CHATROOM_MEMBERS
+            create a chatroom
+            you should seperate each member with a single comma without spaces
+
+        - enter CHATROOM_NAME
+            go into a chatroom
+
+        - upload FILENAME
+            upload a file to the chatroom
+            **YOU MUST NEED TO BE IN A CHATROOM TO PERFORM THIS**
+
+        - download FILENAME
+            download a file from the chatroom
+            **YOU MUST NEED TO BE IN A CHATROOM TO PERFORM THIS**
+
+        - exit
+            exit the chatroom
+
+    > Or enter any printable ascii to go into `text` mode
+        **YOU MUST NEED TO BE IN A CHATROOM TO PERFORM THIS**
+        
+In `help` mode:
+    - Press `q` to exit
+
+In `text` mode:
+    - type ascii printable characters to type
+    - press `enter` to send message
+    - press `esc` to go into `ctrl` mode
+'''[1:-1].split('\n')
+            height = len(message)
+
+            chatPad.erase()
+            for i, line in enumerate(message):
+                chatPad.addstr(i, 0, line) 
             chatPad.refresh(0, 0, 1, verticalCut + 1, horizontalCut - 1, nCols - 2)
 
         #  displayChat([(f'{self.username}', '🙃', 'text', 'Hi!', '2020/01/12 00:01:50'), ('dylan', '🤠', 'text', 'Hello', '2020/01/12 00:01:59'), ('howard', '😖', 'text', 'Ni nei nei deeee', '2020/01/12 00:02:13'), ('devin', '👽', 'text', 'wwwwwwwwwwwwwwwwwwwwwww', '2020/01/12 00:03:20'), (f'{self.username}', '🙃', 'text', 'a' * 200, '2020/01/12 00:01:50'), ('dylan', '🤠', 'text', 'b' * 100, '2020/01/12 00:01:59'), ('howard', '😖', 'text', 'c' * 150, '2020/01/12 00:02:13'), ('devin', '👽', 'text', 'd' * 20, '2020/01/12 00:03:20'), (f'{self.username}', '🙃', 'file', 'file.txt', '2020/01/12 00:05:50'), ('dylan', '🤠', 'file', 'pornhub.mov', '2020/01/12 00:11:03')] * 3)
@@ -260,78 +312,123 @@ i    ▐▀▄       ▄▀▌   ▄▄▄▄▄▄▄
         textHeight = nRows - horizontalCut - 2
         currentChatroom = None
         mode = 'ctrl'
-        buf = 'a' * 500
+        mainWindow.addstr(horizontalCut, verticalCut + 3, f'({mode:4s})')
+        buf = ''
         while True:
             # Display left pad
-            chatroomList = getChatroomList()
-            displayChatroomList(chatroomList)
+            self.chatroomList = getChatroomList()
+            displayChatroomList(self.chatroomList)
 
             # Display chat pad
-            if currentChatroom is not None:
-                chats = getChats(currentChatroom)
-                displayChat(chats)
+            if mode == 'help':
+                displayHelpMessage()
             else:
-                displayPusheen()
+                if currentChatroom is not None:
+                    chats = getChats(currentChatroom)
+                    displayChat(chats)
+                else:
+                    displayPusheen()
 
-            # Display mode
-            mainWindow.addstr(horizontalCut, verticalCut + 3, f'({mode:4s})')
 
             key = mainWindow.getkey()
             # Get input
             if mode == 'ctrl':
                 if key == ':':
                     commands = getInput(mainWindow, horizontalCut + 1, verticalCut + 1, ':', True, length = textWidth).split(' ')
-                    mainWindow.addstr(horizontalCut + 2, verticalCut + 1, commands)
+                    mainWindow.addstr(horizontalCut + 1, verticalCut + 1, ' ' * textWidth)
 
                     command = commands[0]
                     if command == 'help' or command == 'h':
-                        # Display help message
-                        pass
+                        mode = 'help'
 
-                    #TODO
                     elif command == 'create' or command == 'c':
                         name = commands[1]
-                        mates = commands[2].split(',')
-                        data = {'type' : 'CreateChatroom', 'name' : name, 'admins' : [self.username, mates], 'members' : [self.username, mates]}
+                        icon = commands[2]
+                        mates = commands[3].split(',')
+                        data = {'type' : 'CreateChatroom',
+                                'name' : name,
+                                'icon' : icon,
+                                'admins' : [self.username] + mates,
+                                'members' : [self.username] + mates}
                         self.send(json.dumps(data))
                         msg = self.recv()
                         verdit = msg.split('|')
 
                     #TODO
                     elif command == 'enter' or command == 'e':
-                        namd = commands[1]
-                        pass
-
-                    #TODO
-                    elif command == 'download':
-                        pass
+                        name = commands[1]
+                        if name in [c[0] for c in self.chatroomList]:
+                            currentChatroom = name
 
                     #TODO
                     elif command == 'upload':
-                        pass
+                        if currentChatroom is not None:
+                            filename = commands[1]
+                            with open(filename, 'rb') as f:
+                                content = base64.b64encode(f.read())
+                            head, tail = os.path.split(filename)
+                            data = {'type' : 'UploadFile',
+                                    'name' : currentChatroom,
+                                    'filename' : tail,
+                                    'content' : content}
+                            self.send(json.dumps(data))
+                            msg = self.recv()
+
+                    #TODO
+                    elif command == 'download':
+                        if currentChatroom is not None:
+                            filename = commands[1]
+                            data = {'type' : 'UploadFile',
+                                    'name' : currentChatroom,
+                                    'filename' : filename}
+                            self.send(json.dumps(data))
+                            msg = self.recv()
+                            verdit = msg.split('|')[0]
+                            if verdit == 'OK':
+                                content = msg.split('|')[1]
+                                with open(os.path.join('~', 'Downloads', filename), 'wb') as f:
+                                    f.write(base64.b64decode(f.read()))
 
                     elif command == 'exit' or command == 'q':
                         currentChatroom = None
 
                 elif key in string.printable:
-                    if currentChatroom is not None or True:
+                    if currentChatroom is not None:
                         mode = 'text'
+                        mainWindow.addstr(horizontalCut, verticalCut + 3, f'({mode:4s})')
                         buf = key
 
+            elif mode == 'help':
+                if key == 'q':
+                    mode = 'ctrl'
             elif mode == 'text':
                 if key == chr(27):   # esc
                     buf = ''
                     mode = 'ctrl'
+                    mainWindow.addstr(horizontalCut, verticalCut + 3, f'({mode:4s})')
                 elif key == chr(10): #enter
-                    pass
+                    data = {'type' : 'Messaging',
+                            'name' : currentChatroom,
+                            'text' : buf}
+                    self.send(json.dumps(data))
+                    msg = self.recv()
+                    verdit = msg.split('|')
+                    buf = ''
+                elif key == chr(127):  # Backspace
+                    buf = buf[:-1] if len(buf) > 0 else buf
                 elif key in string.printable:
                     buf = buf + key
 
-            lines = [buf[i : i + textWidth] for i in range(0, len(buf), textWidth)]
+            for i in range(textHeight):
+                mainWindow.addstr(horizontalCut + 1 + i, verticalCut + 1, ' ' * textWidth)
+
+            tmpbuf = buf + '_'
+            lines = [tmpbuf[i : i + textWidth] for i in range(0, len(tmpbuf), textWidth)]
             for i, l in enumerate(lines[-textHeight:]):
                 mainWindow.addstr(horizontalCut + 1 + i, verticalCut + 1, l)
 
             mainWindow.refresh()
+            time.sleep(0.01)
 
 
 def main(screen):

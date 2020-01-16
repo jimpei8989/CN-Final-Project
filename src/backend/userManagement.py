@@ -16,7 +16,7 @@ class AccountAgent():
         self.indexFilename = os.path.join(self.rootDir, 'user.json')
         self.crFilename = os.path.join(self.rootDir, 'userChatrooms.pkl')
         self.database = dict()
-        self.chatrooms = dict()
+        self.joinedChatrooms = dict()
 
     # Load & Save
     def load(self):
@@ -25,8 +25,8 @@ class AccountAgent():
                 self.database = json.load(f)
                 assert type(self.database) is dict, "Error: Database should be a dictionary"
             with open(self.crFilename, 'rb') as f:
-                self.chatrooms = pickle.load(f)
-                assert type(self.chatrooms) is dict, "Error: Database should be a dictionary"
+                self.joinedChatrooms = pickle.load(f)
+                assert type(self.joinedChatrooms) is dict, "Error: Database should be a dictionary"
         except FileNotFoundError:
             self.logger.warning('File not found')
             return False, "FileNotFoundError"
@@ -38,7 +38,7 @@ class AccountAgent():
         with open(self.indexFilename, 'w') as f:
             json.dump(self.database, f)
         with open(self.crFilename, 'wb') as f:
-            pickle.dump(self.chatrooms, f)
+            pickle.dump(self.joinedChatrooms, f)
 
     def createUser(self, username, password):
         usernamePolicy = '^[0-9a-zA-Z_]{4,16}$'
@@ -56,7 +56,7 @@ class AccountAgent():
         salt = createSalt()
         hashed = hashPassword(password, salt)
         self.database[username] = (salt, hashed)
-        self.chatrooms[username] = set()
+        self.joinedChatrooms[username] = set()
         self.save()
         self.logger.info(f'createUser : \'{username}\' created successfully')
         return True
@@ -70,12 +70,14 @@ class AccountAgent():
         else:
             return True
 
-    def addUsersToChatroom(self, users, ID):
+    def addUsersToChatroom(self, users, name):
         for u in set(users):
-            self.chatrooms[u].add(ID)
+            if u in self.joinedChatrooms:
+                self.joinedChatrooms[u].add(name)
+        self.save()
 
     def getChatroomList(self, user):
-        return list(self.chatrooms[user])
+        return list(self.joinedChatrooms[user])
 
 
 def test():

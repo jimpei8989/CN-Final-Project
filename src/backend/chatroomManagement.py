@@ -41,7 +41,7 @@ files: {self.files}
 
     def getChatHistory(self, size = 1000):
         size = min(size, len(self.chatHistory))
-        return self.chatHistory[-size:]
+        return [(c['sender'], c['senderIcon'], c['type'], c['data'], c['timestamp']) for c in self.chatHistory[-size:]]
 
     def addChat(self, sender, senderIcon, text, ts):
         self.chatHistory.append({'sender' : sender,
@@ -94,6 +94,7 @@ class ChatroomManager():
             return False, 'chatroom already exists'
         else:
             self.chatrooms[name] = Chatroom(name, os.path.join(self.rootDir, f'{name}.pkl'), icon, admins, members)
+            self.save()
             self.chatrooms[name].save()
             self.logger.info(f'createChatroom: chatroom \'{name}\' created successfully')
         return True
@@ -101,6 +102,11 @@ class ChatroomManager():
     def showAllChatrooms(self):
         for name in self.chatrooms:
             print(self.chatrooms[name])
+
+    def getMetadata(self, name):
+        icon = self.chatrooms[name].icon
+        ts = 'New chat' if len(self.chatrooms[name].chatHistory) == 0 else self.chatrooms[name].chatHistory[-1]['timestamp']
+        return name, icon, ts
 
 def test():
     crmgr = ChatroomManager('./chatrooms')
