@@ -1,6 +1,7 @@
 import os, sys, time, logging, signal
 import base64
 import string
+from argparse import ArgumentParser
 from constants import *
 
 # UI
@@ -362,6 +363,9 @@ In `text` mode:
                             if 0 <= ID < len(self.chatroomList):
                                 currentChatroom = self.chatroomList[ID][0]
 
+                        except:
+                            pass
+
                         if name in [c[0] for c in self.chatroomList]:
                             currentChatroom = name
 
@@ -483,11 +487,20 @@ def main(screen):
     curses.noecho()
     curses.curs_set(0)
 
+    parser = ArgumentParser()
+    parser.add_argument('-s', '--server',
+                        type = str,
+                        default = 'localhost',
+                        help = 'specify server address')
+    parser.add_argument('-p', '--port',
+                        type = int,
+                        default = 1126,
+                        help = 'specify server port')
+
+    args = parser.parse_args()
+
     client = Client(screen, activeWindows)
-    if len(sys.argv) > 1:
-        client.connect(port = int(sys.argv[1]))
-    else:
-        client.connect()
+    client.connect(hostname = args.server, port = args.port)
 
     # Register / Login
     client.login(False)

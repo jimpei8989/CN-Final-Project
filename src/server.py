@@ -1,5 +1,6 @@
 import os, sys, time, datetime, logging
 import signal
+from argparse import ArgumentParser
 import json
 import socket, selectors
 from threading import Thread
@@ -228,10 +229,16 @@ class Server():
 
 def main():
     # TODO: server config
-    if len(sys.argv) > 1:
-        server = Server(port = int(sys.argv[1]))
-    else:
-        server = Server()
+    parser = ArgumentParser()
+    parser.add_argument('-p', '--port',
+                        default = 1126,
+                        type = int,
+                        help = 'specify server port')
+
+    args = parser.parse_args()
+
+    server = Server(port = args.port)
+
     def handler(signum, frame):
         # TODO: saveall
         server.saveall()
