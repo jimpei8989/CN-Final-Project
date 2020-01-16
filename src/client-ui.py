@@ -389,6 +389,14 @@ In `text` mode:
                                 with open(os.path.join('~', 'Downloads', filename), 'wb') as f:
                                     f.write(base64.b64decode(f.read()))
 
+                    elif command == 'updateIcon':
+                        icon = commands[1]
+                        data = {'type' : 'UpdateIcon',
+                                'icon' : icon}
+                        self.send(json.dumps(data))
+                        msg = self.recv()
+                        verdit = msg.split('|')[0]
+
                     elif command == 'exit' or command == 'q':
                         currentChatroom = None
 
@@ -407,13 +415,14 @@ In `text` mode:
                     mode = 'ctrl'
                     mainWindow.addstr(horizontalCut, verticalCut + 3, f'({mode:4s})')
                 elif key == chr(10): #enter
-                    data = {'type' : 'Messaging',
-                            'name' : currentChatroom,
-                            'text' : buf}
-                    self.send(json.dumps(data))
-                    msg = self.recv()
-                    verdit = msg.split('|')
-                    buf = ''
+                    if buf != '':
+                        data = {'type' : 'Messaging',
+                                'name' : currentChatroom,
+                                'text' : buf}
+                        self.send(json.dumps(data))
+                        msg = self.recv()
+                        verdit = msg.split('|')
+                        buf = ''
                 elif key == chr(127):  # Backspace
                     buf = buf[:-1] if len(buf) > 0 else buf
                 elif key in string.printable:

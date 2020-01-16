@@ -141,7 +141,8 @@ class Server():
             name, text = data['name'], data['text']
             if name in self.chatroomMgr.chatrooms and self.chatroomMgr.chatrooms[name].isMember(user):
                 timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                self.chatroomMgr.chatrooms[name].addChat(user, None, text, timestamp)
+                userIcon = self.accountAgent.getUserIcon(user)
+                self.chatroomMgr.chatrooms[name].addChat(user, userIcon, text, timestamp)
                 sendOK()
                 self.logger.debug(f'handleConnection -> Messaging: \'{user}\' texted\n\t\t\t{text}\n\t\tin [{name}]')
             else:
@@ -171,6 +172,12 @@ class Server():
                     sendOK(content)
             else:
                 sendFail('Permission Error')
+
+        if data['type'] == 'UpdateIcon':
+            user = getUser()
+            icon = data['icon']
+            self.accountAgent.setUserIcon(user, icon)
+            sendOK()
 
     def start(self, timeout = None, maxNumOfConnections = 1024):
         self.sock.listen(maxNumOfConnections)

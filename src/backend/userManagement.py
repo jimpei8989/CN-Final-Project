@@ -14,8 +14,11 @@ class AccountAgent():
         self.logger = createLogger('account-agent')
         self.rootDir = rootDir
         self.indexFilename = os.path.join(self.rootDir, 'user.json')
+        self.iconFilename = os.path.join(self.rootDir, 'userIcon.json')
         self.crFilename = os.path.join(self.rootDir, 'userChatrooms.pkl')
+
         self.database = dict()
+        self.userIcon = dict()
         self.joinedChatrooms = dict()
 
     # Load & Save
@@ -24,6 +27,9 @@ class AccountAgent():
             with open(self.indexFilename, 'r') as f:
                 self.database = json.load(f)
                 assert type(self.database) is dict, "Error: Database should be a dictionary"
+            with open(self.iconFilename, 'r') as f:
+                self.userIcon = json.load(f)
+                assert type(self.database) is dict, "Error: userIcon should be a dictionary"
             with open(self.crFilename, 'rb') as f:
                 self.joinedChatrooms = pickle.load(f)
                 assert type(self.joinedChatrooms) is dict, "Error: Database should be a dictionary"
@@ -37,6 +43,8 @@ class AccountAgent():
     def save(self):
         with open(self.indexFilename, 'w') as f:
             json.dump(self.database, f)
+        with open(self.iconFilename, 'w') as f:
+            json.dump(self.userIcon, f)
         with open(self.crFilename, 'wb') as f:
             pickle.dump(self.joinedChatrooms, f)
 
@@ -56,6 +64,7 @@ class AccountAgent():
         salt = createSalt()
         hashed = hashPassword(password, salt)
         self.database[username] = (salt, hashed)
+        self.userIcon[username] = '😊'
         self.joinedChatrooms[username] = set()
         self.save()
         self.logger.info(f'createUser : \'{username}\' created successfully')
@@ -78,6 +87,14 @@ class AccountAgent():
 
     def getChatroomList(self, user):
         return list(self.joinedChatrooms[user])
+
+    def setUserIcon(self, user, icon):
+        if user in self.userIcon:
+            self.userIcon[user] = icon
+    
+    def getUserIcon(self, user):
+        if user in self.userIcon:
+            return self.userIcon[user]
 
 
 def test():
