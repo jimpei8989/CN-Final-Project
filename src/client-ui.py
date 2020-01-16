@@ -175,7 +175,7 @@ o888o        o888o  o888o  `V88V"V8P'     "888" `Y888""8o o888o o888o o888o
                     leftPad.addstr(rowCount, 0, '-' * leftPadWidth)
                     rowCount += 1
                 leftPad.addstr(rowCount, 0, f'[{i:2d}] {c[1]} - {c[0]}')
-                leftPad.addstr(rowCount + 1, 0, f'{c[0]}')
+                leftPad.addstr(rowCount + 1, 0, f'{c[2]}')
                 rowCount += 2
             leftPad.refresh(0, 0, 1, 1, nRows - 2, verticalCut - 1)
 
