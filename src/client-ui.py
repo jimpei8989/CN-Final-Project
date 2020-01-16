@@ -339,24 +339,29 @@ In `text` mode:
 
                     elif command == 'create' or command == 'c':
                         try:
-                            name = commands[1]
-                            icon = commands[2]
-                            mates = [mate.strip() for mate in commands[3].split(',')]
-                            data = {'type' : 'CreateChatroom',
-                                    'name' : name,
-                                    'icon' : icon,
-                                    'admins' : [self.username] + mates,
-                                    'members' : [self.username] + mates}
-                            self.send(json.dumps(data))
-                            msg = self.recv()
-                            verdict = msg.split('|')
+                            if name[0] in string.ascii_letters:
+                                name = commands[1]
+                                icon = commands[2]
+                                mates = [mate.strip() for mate in commands[3].split(',')]
+                                data = {'type' : 'CreateChatroom',
+                                        'name' : name,
+                                        'icon' : icon,
+                                        'admins' : [self.username] + mates,
+                                        'members' : [self.username] + mates}
+                                self.send(json.dumps(data))
+                                msg = self.recv()
+                                verdict = msg.split('|')
                         except:
                             pass
-
 
                     #TODO
                     elif command == 'enter' or command == 'e':
                         name = commands[1]
+                        try:
+                            ID = int(name)
+                            if 0 <= ID < len(self.chatroomList):
+                                currentChatroom = self.chatroomList[ID][0]
+
                         if name in [c[0] for c in self.chatroomList]:
                             currentChatroom = name
 
