@@ -194,7 +194,7 @@ class Server():
                 if key.data is None:
                     connection, address = self.sock.accept()
                     connection.setblocking(0)
-                    selector.register(connection, selectors.EVENT_READ | selectors.EVENT_WRITE, data = address)
+                    selector.register(connection, selectors.EVENT_READ, data = address)
                     clientIP, clientPort = address
                     self.logger.info(f'Connection from [{clientIP} : {clientPort}]')
                 else:
