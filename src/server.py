@@ -51,9 +51,15 @@ class Server():
 
     def handleConnection(self, data, clientSocket, clientIP, clientPort, connectionState):
         def sendOK(msg = ''):
-            clientSocket.send(('OK' if msg == '' else f'OK|{msg}').encode('UTF-8'))
+            clientSocket.send(json.dumps({
+                'verdict': 'OK',
+                'data': msg
+                }).encode('UTF-8'))
         def sendFail(msg = ''):
-            clientSocket.send(('Fail' if msg == '' else f'Fail|{msg}').encode('UTF-8'))
+            clientSocket.send(json.dumps({
+                'verdict': 'Fail',
+                'data': msg
+                }).encode('UTF-8'))
 
         def getUser():
             if clientSocket not in connectionState or connectionState[clientSocket] is None:
@@ -155,7 +161,8 @@ class Server():
             name, filename, content = data['name'], data['filename'], data['content']
             if name in self.chatroomMgr.chatrooms and self.chatroomMgr.chatrooms[name].isMember(user):
                 timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                self.chatroomMgr.chatrooms[name].addFile(user, None, filename, content, timestamp)
+                userIcon = self.accountAgent.getUserIcon(user)
+                self.chatroomMgr.chatrooms[name].addFile(user, userIcon, filename, content, timestamp)
                 sendOK()
                 self.logger.debug(f'handleConnection -> UploadFile: \'{user}\' uploaded\n\t\t\t{filename}\n\t\tin [{name}]')
             else:
@@ -170,6 +177,7 @@ class Server():
                 if content is None:
                     sendFail('File not found')
                 else:
+                    print(content)
                     sendOK(content)
             else:
                 sendFail('Permission Error')
@@ -189,11 +197,14 @@ class Server():
         selector = selectors.DefaultSelector()
         selector.register(self.sock, selectors.EVENT_READ, data = None)
 
+        connectionBuffer = dict()
+
         while timeout is None or time.process_time() - beginTimestamp < timeout:
             events = selector.select(timeout = None)
             for key, mask in events:
                 if key.data is None:
                     connection, address = self.sock.accept()
+                    connectionBuffer[connection] = bytes()
                     connection.setblocking(0)
                     selector.register(connection, selectors.EVENT_READ, data = address)
                     clientIP, clientPort = address
@@ -205,12 +216,13 @@ class Server():
                         try:
                             iptBytes = connection.recv(MAX_BUFFER_SIZE)
                             if iptBytes:
-                                data = json.loads(iptBytes.decode('utf-8')) # A string
-                                print(f'{data}')
+                                tmp = connectionBuffer[connection] + iptBytes
+                                data = json.loads(tmp.decode('utf-8')) # A string
                                 newThread = Thread(target = self.handleConnection,
                                                    args = (data, connection, clientIP, clientPort, connectionState)
                                                    )
                                 newThread.run()
+                                connectionBuffer[connection] = bytes()
                             else:
                                 self.logger.warning(f'Connection lost by [{clientIP} : {clientPort}]')
                                 selector.unregister(connection)
@@ -222,8 +234,7 @@ class Server():
                             if connection in connectionState:
                                 del connectionState[connection]
                         except json.decoder.JSONDecodeError:
-                            print(iptBytes)
-                            self.logger.warning(f'JSON Decodes error')
+                            connectionBuffer[connection] = tmp
 
         self.sock.close()
 
