@@ -253,6 +253,7 @@ def main():
     def handler(signum, frame):
         # TODO: saveall
         server.saveall()
+        server.sock.close()
         exit(0)
 
     signal.signal(signal.SIGINT, handler)
