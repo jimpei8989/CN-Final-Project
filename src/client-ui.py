@@ -342,17 +342,20 @@ In `text` mode:
                         mode = 'help'
 
                     elif command == 'create' or command == 'c':
-                        name = commands[1]
-                        icon = commands[2]
-                        mates = commands[3].split(',')
-                        data = {'type' : 'CreateChatroom',
-                                'name' : name,
-                                'icon' : icon,
-                                'admins' : [self.username] + mates,
-                                'members' : [self.username] + mates}
-                        self.send(json.dumps(data))
-                        msg = self.recv()
-                        verdit = msg.split('|')
+                        try:
+                            name = commands[1]
+                            icon = commands[2]
+                            mates = [mate.strip() for mate in commands[3].split(',')]
+                            data = {'type' : 'CreateChatroom',
+                                    'name' : name,
+                                    'icon' : icon,
+                                    'admins' : [self.username] + mates,
+                                    'members' : [self.username] + mates}
+                            self.send(json.dumps(data))
+                            msg = self.recv()
+                            verdit = msg.split('|')
+                        except:
+
 
                     #TODO
                     elif command == 'enter' or command == 'e':
@@ -365,7 +368,7 @@ In `text` mode:
                         if currentChatroom is not None:
                             filename = commands[1]
                             with open(filename, 'rb') as f:
-                                content = base64.b64encode(f.read())
+                                content = base64.b64encode(f.read()).decode()
                             head, tail = os.path.split(filename)
                             data = {'type' : 'UploadFile',
                                     'name' : currentChatroom,
@@ -383,8 +386,8 @@ In `text` mode:
                                     'filename' : filename}
                             self.send(json.dumps(data))
                             msg = self.recv()
-                            verdit = msg.split('|')[0]
-                            if verdit == 'OK':
+                            verdict = msg.split('|')[0]
+                            if verdict == 'OK':
                                 content = msg.split('|')[1]
                                 with open(os.path.join('~', 'Downloads', filename), 'wb') as f:
                                     f.write(base64.b64decode(f.read()))
@@ -448,7 +451,7 @@ def main(screen):
         quitWindow = curses.newwin(height, width, (nRows - height) // 2, (nCols - width) // 2)
         quitWindow.box()
 
-        quitMessages = ['Press <q> to quit', 'Press <ESC> to continue']
+        quitMessages = ["Press 'q' to quit", "Press '<ESC>' to continue"]
         for i, m in enumerate(quitMessages):
             quitWindow.addstr((height - len(quitMessages)) // 2 + i, (width - len(m)) // 2, m)
         quitWindow.refresh()
