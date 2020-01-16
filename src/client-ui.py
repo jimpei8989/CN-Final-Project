@@ -353,8 +353,9 @@ In `text` mode:
                                     'members' : [self.username] + mates}
                             self.send(json.dumps(data))
                             msg = self.recv()
-                            verdit = msg.split('|')
+                            verdict = msg.split('|')
                         except:
+                            pass
 
 
                     #TODO
@@ -398,7 +399,7 @@ In `text` mode:
                                 'icon' : icon}
                         self.send(json.dumps(data))
                         msg = self.recv()
-                        verdit = msg.split('|')[0]
+                        verdict = msg.split('|')[0]
 
                     elif command == 'exit' or command == 'q':
                         currentChatroom = None
@@ -424,7 +425,7 @@ In `text` mode:
                                 'text' : buf}
                         self.send(json.dumps(data))
                         msg = self.recv()
-                        verdit = msg.split('|')
+                        verdict = msg.split('|')
                         buf = ''
                 elif key == chr(127):  # Backspace
                     buf = buf[:-1] if len(buf) > 0 else buf
