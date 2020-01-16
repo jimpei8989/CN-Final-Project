@@ -271,24 +271,24 @@ In `ctrl` mode:
 
         - create CHATROOM_NAME CHATROOM_ICON CHATROOM_MEMBERS
             create a chatroom
-            you should seperate each member with a single comma without spaces
+            you should separate each member with a single comma without spaces
 
         - enter CHATROOM_NAME
             go into a chatroom
 
         - upload FILENAME
             upload a file to the chatroom
-            **YOU MUST NEED TO BE IN A CHATROOM TO PERFORM THIS**
+            **YOU MUST BE IN A CHATROOM TO PERFORM THIS**
 
         - download FILENAME
             download a file from the chatroom
-            **YOU MUST NEED TO BE IN A CHATROOM TO PERFORM THIS**
+            **YOU MUST BE IN A CHATROOM TO PERFORM THIS**
 
         - exit
             exit the chatroom
 
     > Or enter any printable ascii to enter `text` mode
-        **YOU MUST NEED TO BE IN A CHATROOM TO PERFORM THIS**
+        **YOU MUST BE IN A CHATROOM TO PERFORM THIS**
         
 In `help` mode:
     - press 'q' to exit
