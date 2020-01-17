@@ -268,7 +268,7 @@ o888o        o888o  o888o  `V88V"V8P'     "888" `Y888""8o o888o o888o o888o
                         displayText = [f'!!!!! {data[0]} !!!!!!']
                     alignLeft(displayHeader, displayText)
                     if typee == 'image':
-                        imageRight(data[1])
+                        imageLeft(data[1])
             chatPad.refresh(0 if rowCount < chatPadHeight else rowCount - chatPadHeight, 0, 1, verticalCut + 1, horizontalCut - 1, nCols - 2)
 
         def displayPusheen():
@@ -372,18 +372,23 @@ In `text` mode:
                 mainWindow.addstr(horizontalCut + 1 + i, verticalCut + 1, ' ' * textWidth)
 
             mainWindow.addstr(horizontalCut, verticalCut + 3, f'({mode:4s})')
+
             # Display Textbox
-            tmpbuf = buf + '_'
-            lines = [tmpbuf[i : i + textWidth] for i in range(0, len(tmpbuf), textWidth)]
+            lines = [buf[i : i + textWidth] for i in range(0, len(buf), textWidth)]
             for i, l in enumerate(lines[-textHeight:]):
                 mainWindow.addstr(horizontalCut + 1 + i, verticalCut + 1, l)
+            if buf == '':
+                mainWindow.addstr(horizontalCut + 1, verticalCut + 1, '_', curses.A_BLINK)
+            elif len(lines[-1]) != textWidth:
+                mainWindow.addstr(horizontalCut + 1 + len(lines) - 1, verticalCut + len(lines[-1]) + 1, '_', curses.A_BLINK)
+            else:
+                mainWindow.addstr(horizontalCut + 1 + len(lines), verticalCut + 1, '_', curses.A_BLINK)
 
             key = mainWindow.getkey()
             # Get input
             if mode == 'ctrl':
                 if key == ':':
                     commands = getInput(mainWindow, horizontalCut + 1, verticalCut + 1, ':', True, length = textWidth).split(' ')
-                    mainWindow.addstr(horizontalCut + 1, verticalCut + 1, ' ' * textWidth)
 
                     command = commands[0]
                     if command == 'help' or command == 'h':
@@ -486,7 +491,7 @@ In `text` mode:
                     elif command == 'updateIcon':
                         icon = commands[1]
                         data = {'type' : 'UpdateIcon',
-                                'icon' : emoji.emojize(icon)}
+                                'icon' : emoji.emojize(icon, use_aliases = True)}
                         self.send(json.dumps(data))
                         response = self.recv()
 
@@ -509,7 +514,7 @@ In `text` mode:
                     if buf != '':
                         data = {'type' : 'Messaging',
                                 'name' : currentChatroom,
-                                'text' : emoji.emojize(buf)}
+                                'text' : emoji.emojize(buf, use_aliases = True)}
                         self.send(json.dumps(data))
                         response = self.recv()
                         buf = ''
