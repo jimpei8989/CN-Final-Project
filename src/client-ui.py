@@ -361,7 +361,8 @@ In `text` mode:
                             ID = int(name)
                             if 0 <= ID < len(self.chatroomList):
                                 currentChatroom = self.chatroomList[ID][0]
-
+                        except:
+                            pass
                         if name in [c[0] for c in self.chatroomList]:
                             currentChatroom = name
 
@@ -389,10 +390,15 @@ In `text` mode:
                             self.send(json.dumps(data))
                             msg = self.recv()
                             verdict = msg.split('|')[0]
+                            open('mylog', 'w').write(msg)
                             if verdict == 'OK':
                                 content = msg.split('|')[1]
-                                with open(os.path.expanduser(os.path.join('~', 'Downloads', filename)), 'wb') as f:
-                                    f.write(base64.b64decode(content))
+                                if len(commands) > 2:
+                                    fullname = os.path.join(commands[2], filename)
+                                else:
+                                    fullname = os.path.expanduser(os.path.join('~', 'Downloads', filename))
+                                with open(fullname, 'wb') as f:
+                                    f.write(base64.b64decode(content.strip()))
 
                     elif command == 'updateIcon':
                         icon = commands[1]
