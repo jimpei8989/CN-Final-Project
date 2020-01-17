@@ -1,6 +1,7 @@
 import os, sys, time, logging, signal
 import base64
 import string
+from argparse import ArgumentParser
 from constants import *
 
 # UI
@@ -36,7 +37,15 @@ class Client():
         self.sock.send(message.encode('utf-8'))
 
     def recv(self):
-        return self.sock.recv(MAX_BUFFER_SIZE).decode('UTF-8')
+        buf = ''
+        while True:
+            try:
+                tmp = self.sock.recv(MAX_BUFFER_SIZE).decode()
+                buf += tmp
+                data = json.loads(buf)
+                return data
+            except json.decoder.JSONDecodeError:
+                pass
 
     def login(self, relogin = 3):
         screen = self.screen
@@ -93,13 +102,14 @@ o888o        o888o  o888o  `V88V"V8P'     "888" `Y888""8o o888o o888o o888o
         # Send packet and check result
         data = {'type' : 'Register', 'username' : username, 'password' : password}
         self.send(json.dumps(data))
-        msg = self.recv()
-        resultRegistration = True if 'OK' in msg else False
+        response = self.recv()
+        resultRegistration = (response['verdict'] == 'OK')
+        loginWindow.addstr(1, 1, 'blah')
 
         data = {'type' : 'Login', 'username' : username, 'password' : password}
         self.send(json.dumps(data))
-        msg = self.recv()
-        resultLogin = True if 'OK' in msg else False
+        response = self.recv()
+        resultLogin = (response['verdict'] == 'OK')
 
         if resultLogin is False:
             if relogin == 1:
@@ -117,21 +127,6 @@ o888o        o888o  o888o  `V88V"V8P'     "888" `Y888""8o o888o o888o o888o
             del self.activeWindows[loginWindow]
             del loginWindow
     
-    def createChatroom(self):
-        name = input('Chatroom Name: ')
-        people = input('Talking With: ').split(', ')[0]
-        data = {'type' : 'CreateChatroom', 'name' : name, 'admins' : [self.username, people], 'members' : [self.username, people]}
-        self.send(json.dumps(data))
-        msg = self.recv()
-        ID = msg.split('|')[1]
-        return ID
-
-    def chat(self, ID):
-        text = input(f'{self.username}> ')
-        data = {'type' : 'Messaging', 'ID' : ID, 'text' : text}
-        self.send(json.dumps(data))
-        msg = self.recv()
-
     def start(self):
         # Get screen size and define pad size
         nRows, nCols = self.screen.getmaxyx()
@@ -163,8 +158,8 @@ o888o        o888o  o888o  `V88V"V8P'     "888" `Y888""8o o888o o888o o888o
         def getChatroomList():
             data = {'type' : 'GetChatroomList'}
             self.send(json.dumps(data))
-            msg = self.recv()
-            self.chatroomList = set(map(tuple, sorted(json.loads(msg.split('|')[1]))))
+            response = self.recv()
+            self.chatroomList = set(map(tuple, sorted(json.loads(response['data']))))
             return self.chatroomList
 
         def displayChatroomList(chatroomList):
@@ -189,8 +184,8 @@ o888o        o888o  o888o  `V88V"V8P'     "888" `Y888""8o o888o o888o o888o
         def getChats(name):
             data = {'type' : 'GetChatHistory', 'name' : name}
             self.send(json.dumps(data))
-            msg = self.recv()
-            chats = json.loads(msg.split('|')[1])
+            response = self.recv()
+            chats = json.loads(response['data'])
             return chats
 
         def displayChat(chats):
@@ -270,24 +265,24 @@ In `ctrl` mode:
 
         - create CHATROOM_NAME CHATROOM_ICON CHATROOM_MEMBERS
             create a chatroom
-            you should seperate each member with a single comma without spaces
+            you should separate each member with a single comma without spaces
 
         - enter CHATROOM_NAME
             go into a chatroom
 
         - upload FILENAME
             upload a file to the chatroom
-            **YOU MUST NEED TO BE IN A CHATROOM TO PERFORM THIS**
+            **YOU MUST BE IN A CHATROOM TO PERFORM THIS**
 
         - download FILENAME
             download a file from the chatroom
-            **YOU MUST NEED TO BE IN A CHATROOM TO PERFORM THIS**
+            **YOU MUST BE IN A CHATROOM TO PERFORM THIS**
 
         - exit
             exit the chatroom
 
     > Or enter any printable ascii to enter `text` mode
-        **YOU MUST NEED TO BE IN A CHATROOM TO PERFORM THIS**
+        **YOU MUST BE IN A CHATROOM TO PERFORM THIS**
         
 In `help` mode:
     - press 'q' to exit
@@ -339,9 +334,8 @@ In `text` mode:
 
                     elif command == 'create' or command == 'c':
                         try:
+                            name, icon = commands[1], commands[2]
                             if name[0] in string.ascii_letters:
-                                name = commands[1]
-                                icon = commands[2]
                                 mates = [mate.strip() for mate in commands[3].split(',')]
                                 data = {'type' : 'CreateChatroom',
                                         'name' : name,
@@ -349,8 +343,7 @@ In `text` mode:
                                         'admins' : [self.username] + mates,
                                         'members' : [self.username] + mates}
                                 self.send(json.dumps(data))
-                                msg = self.recv()
-                                verdict = msg.split('|')
+                                response = self.recv()
                         except:
                             pass
 
@@ -378,7 +371,7 @@ In `text` mode:
                                     'filename' : tail,
                                     'content' : content}
                             self.send(json.dumps(data))
-                            msg = self.recv()
+                            response = self.recv()
 
                     #TODO
                     elif command == 'download':
@@ -388,25 +381,23 @@ In `text` mode:
                                     'name' : currentChatroom,
                                     'filename' : filename}
                             self.send(json.dumps(data))
-                            msg = self.recv()
-                            verdict = msg.split('|')[0]
-                            open('mylog', 'w').write(msg)
-                            if verdict == 'OK':
-                                content = msg.split('|')[1]
+                            response = self.recv()
+                            print(response)
+                            if response['verdict'] == 'OK':
+                                content = response['data']
                                 if len(commands) > 2:
                                     fullname = os.path.join(commands[2], filename)
                                 else:
                                     fullname = os.path.expanduser(os.path.join('~', 'Downloads', filename))
                                 with open(fullname, 'wb') as f:
-                                    f.write(base64.b64decode(content.strip()))
-
+                                    f.write(base64.b64decode(content))
+                                    
                     elif command == 'updateIcon':
                         icon = commands[1]
                         data = {'type' : 'UpdateIcon',
                                 'icon' : icon}
                         self.send(json.dumps(data))
-                        msg = self.recv()
-                        verdict = msg.split('|')[0]
+                        response = self.recv()
 
                     elif command == 'exit' or command == 'q':
                         currentChatroom = None
@@ -431,8 +422,7 @@ In `text` mode:
                                 'name' : currentChatroom,
                                 'text' : buf}
                         self.send(json.dumps(data))
-                        msg = self.recv()
-                        verdict = msg.split('|')
+                        response = self.recv()
                         buf = ''
                 elif key == chr(127):  # Backspace
                     buf = buf[:-1] if len(buf) > 0 else buf
@@ -489,11 +479,20 @@ def main(screen):
     curses.noecho()
     curses.curs_set(0)
 
+    parser = ArgumentParser()
+    parser.add_argument('-s', '--server',
+                        type = str,
+                        default = 'localhost',
+                        help = 'specify server address')
+    parser.add_argument('-p', '--port',
+                        type = int,
+                        default = 1126,
+                        help = 'specify server port')
+
+    args = parser.parse_args()
+
     client = Client(screen, activeWindows)
-    if len(sys.argv) > 1:
-        client.connect(port = int(sys.argv[1]))
-    else:
-        client.connect()
+    client.connect(hostname = args.server, port = args.port)
 
     # Register / Login
     client.login(False)
