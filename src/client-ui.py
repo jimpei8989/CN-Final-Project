@@ -6,6 +6,7 @@ from constants import *
 import tempfile
 # UI
 import curses
+import emoji
 
 # Exchange
 import json
@@ -29,6 +30,7 @@ class Client():
         self.screen = screen
         self.username = None
         self.activeWindows = activeWindows
+        self.colorToPair = dict()
 
     def connect(self, hostname = 'localhost', port = 2900):
         self.sock.connect((hostname, port))
@@ -51,6 +53,13 @@ class Client():
                     return data
                 except json.decoder.JSONDecodeError:
                     pass
+
+    def setColor(self, fg, bg):
+        if (fg, bg) not in self.colorToPair:
+            pair_num = len(self.colorToPair) + 1
+            curses.init_pair(pair_num, fg, bg)
+            self.colorToPair[(fg, bg)] = pair_num
+        return self.colorToPair[(fg, bg)]
 
     def login(self, relogin = 3):
         screen = self.screen
@@ -75,11 +84,9 @@ o888o        o888o  o888o  `V88V"V8P'     "888" `Y888""8o o888o o888o o888o
         bannerWidth = max(len(l) for l in banner)
         bannerBeginRow = max(3, nRows // 5)
         bannerBeginCol = max(3, (nCols - bannerWidth) // 2)
-        curses.init_pair(1, 197, 0)
 
         for i, l in enumerate(banner):
-            loginWindow.addstr(bannerBeginRow + i, bannerBeginCol, l, curses.color_pair(1))
-        #  loginWindow.refresh()
+            loginWindow.addstr(bannerBeginRow + i, bannerBeginCol, l, curses.color_pair(self.setColor(197, 0)))
 
         # Get username and password
         usernameBeginRow = min(nRows - 6, int(0.7 * nRows))
@@ -150,9 +157,9 @@ o888o        o888o  o888o  `V88V"V8P'     "888" `Y888""8o o888o o888o o888o
             mainWindow.addch(horizontalCut, verticalCut, curses.ACS_LTEE)
             mainWindow.hline(horizontalCut, verticalCut + 1, curses.ACS_HLINE, nCols - verticalCut - 2)
             mainWindow.addch(horizontalCut, nCols - 1, curses.ACS_RTEE)
+            mainWindow.refresh()
 
         displayFramework()
-        mainWindow.refresh()
 
         # create left pad
         leftPad = curses.newpad(1000, nCols)
@@ -164,7 +171,7 @@ o888o        o888o  o888o  `V88V"V8P'     "888" `Y888""8o o888o o888o o888o
             data = {'type' : 'GetChatroomList'}
             self.send(json.dumps(data))
             response = self.recv()
-            self.chatroomList = set(map(tuple, sorted(json.loads(response['data']))))
+            self.chatroomList = sorted(list(set(map(tuple, json.loads(response['data'])))), key = lambda k : k[2], reverse = True)
             return self.chatroomList
 
         def displayChatroomList(chatroomList):
@@ -176,7 +183,7 @@ o888o        o888o  o888o  `V88V"V8P'     "888" `Y888""8o o888o o888o o888o
                     leftPad.addstr(rowCount, 0, '-' * leftPadWidth)
                     rowCount += 1
                 leftPad.addstr(rowCount, 0, f'[{i:2d}] {c[1]} - {c[0]}')
-                leftPad.addstr(rowCount + 1, 0, f'{c[2]}')
+                leftPad.addstr(rowCount + 1, 0, f'Last: {c[2]}')
                 rowCount += 2
             leftPad.refresh(0, 0, 1, 1, nRows - 2, verticalCut - 1)
 
@@ -198,7 +205,31 @@ o888o        o888o  o888o  `V88V"V8P'     "888" `Y888""8o o888o o888o o888o
             # chats is a list of (sender, senderIcon, type, data, time)
             chatPad.erase()
             rowCount = 0
-            def alignLeft(header, lines):
+            def imageLeft(img):
+                nonlocal rowCount
+                # img should be a 2d list of (ch, fg, bg)
+                tmpH = len(img)
+                tmpW = max(map(len, img))
+                for i, l in enumerate(img):
+                    for j, c in enumerate(l):
+                        ch, fg, bg = c
+                        chatPad.addstr(rowCount, j, ch, curses.color_pair(self.setColor(fg, bg)))
+                    rowCount += 1
+                rowCount += 1
+
+            def imageRight(img):
+                nonlocal rowCount
+                # img should be a 2d list of (ch, fg, bg)
+                tmpH = len(img)
+                tmpW = max(map(len, img))
+                for i, l in enumerate(img):
+                    for j, c in enumerate(l):
+                        ch, fg, bg = c
+                        chatPad.addstr(rowCount, chatPadWidth - tmpW  - 2 + j, ch, curses.color_pair(self.setColor(fg, bg)))
+                    rowCount += 1
+                rowCount += 1
+
+            def alignLeft(header, lines = []):
                 nonlocal rowCount
                 chatPad.addstr(rowCount, 0, header)
                 rowCount += 1
@@ -206,7 +237,7 @@ o888o        o888o  o888o  `V88V"V8P'     "888" `Y888""8o o888o o888o o888o
                     chatPad.addstr(rowCount, 0, line)
                     rowCount += 1
                 rowCount += 1
-            def alignRight(header, lines):
+            def alignRight(header, lines = []):
                 nonlocal rowCount
                 chatPad.addstr(rowCount, chatPadWidth - len(header) - 2, header)
                 rowCount += 1
@@ -214,6 +245,7 @@ o888o        o888o  o888o  `V88V"V8P'     "888" `Y888""8o o888o o888o o888o
                     chatPad.addstr(rowCount, chatPadWidth - len(line) - 2, line)
                     rowCount += 1
                 rowCount += 1
+
             for chat in chats:
                 sender, icon, typee, data, time = chat
                 displayHeader = f'{icon} [{sender}] at {time}'
@@ -222,13 +254,19 @@ o888o        o888o  o888o  `V88V"V8P'     "888" `Y888""8o o888o o888o o888o
                         displayText = [data[i : i + widthPerLine] + ' <<<' for i in range(0, len(data), widthPerLine)]
                     elif typee == 'file':
                         displayText = [f'FILE : "{data}" <~~']
+                    elif typee == 'image':
+                        displayText = [f'!!!!! {data[0]} !!!!!!']
                     alignRight(displayHeader, displayText)
+                    imageRight(data[1])
                 else:
                     if typee == 'text':
                         displayText = ['>>> ' + data[i : i + widthPerLine] for i in range(0, len(data), widthPerLine)]
                     elif typee == 'file':
                         displayText = [f'~~> FILE : "{data}"']
+                    elif typee == 'image':
+                        displayText = [f'!!!!! {data[0]} !!!!!!']
                     alignLeft(displayHeader, displayText)
+                    imageRight(data[1])
             chatPad.refresh(0 if rowCount < chatPadHeight else rowCount - chatPadHeight, 0, 1, verticalCut + 1, horizontalCut - 1, nCols - 2)
 
         def displayPusheen():
@@ -309,9 +347,11 @@ In `text` mode:
         textHeight = nRows - horizontalCut - 2
         currentChatroom = None
         mode = 'ctrl'
-        mainWindow.addstr(horizontalCut, verticalCut + 3, f'({mode:4s})')
         buf = ''
         while True:
+            # Display Framework
+            displayFramework()
+
             # Display left pad
             self.chatroomList = getChatroomList()
             displayChatroomList(self.chatroomList)
@@ -326,6 +366,15 @@ In `text` mode:
                 else:
                     displayPusheen()
 
+            for i in range(textHeight):
+                mainWindow.addstr(horizontalCut + 1 + i, verticalCut + 1, ' ' * textWidth)
+
+            mainWindow.addstr(horizontalCut, verticalCut + 3, f'({mode:4s})')
+            # Display Textbox
+            tmpbuf = buf + '_'
+            lines = [tmpbuf[i : i + textWidth] for i in range(0, len(tmpbuf), textWidth)]
+            for i, l in enumerate(lines[-textHeight:]):
+                mainWindow.addstr(horizontalCut + 1 + i, verticalCut + 1, l)
 
             key = mainWindow.getkey()
             # Get input
@@ -368,25 +417,36 @@ In `text` mode:
                     elif command == 'image':
                         if currentChatroom is not None:
                             filename = os.path.expanduser(commands[1])
+                            head, tail = os.path.split(filename)
                             tmp = tempfile.NamedTemporaryFile()
                             with open(filename, 'rb') as f:
                                 tmp.write(f.read())
                             tmp.seek(0)
-                            img = os.popen(f"chafa -c 256 --color-space din99d --symbols -dot-stipple --size 30x30 {tmp.name}").read()
-                            open('test_img', 'w').write(img)
-                            data = {'type' : 'Messaging',
+                            imgBytes = os.popen(f'chafa -c 256 --color-space din99d --symbols -dot-stipple --size=40x40 {tmp.name}').read()
+                            
+                            def parse(b):
+                                segs = b.split('m')
+                                ch, fg, bg, rev = segs[-1], 0, 0, False
+                                for seg in segs:
+                                    if '\x1b[38;5;' in seg:
+                                        fg = seg.split(';')[-1]
+                                    if '\x1b[48;5;' in seg:
+                                        bg = seg.split(';')[-1]
+                                    if '\x1b[7' in seg:
+                                        rev = seg.split(';')[-1]
+                                if rev:
+                                    fg, bg = bg, fg
+                                return ch, int(fg), int(bg)
+                            
+                            # ret should be a 2-d list of (character, fg, bg)
+                            ret = [[parse(ttt) for ttt in line.split('\x1b[0m')[1:-1]] for line in imgBytes.split('\n')[:-1]]
+
+                            data = {'type' : 'Image',
                                     'name' : currentChatroom,
-                                    'text' : img}
+                                    'caption': tail,
+                                    'img' : ret}
                             self.send(json.dumps(data))
                             response = self.recv()
-                            buf = ''
-                            # head, tail = os.path.split(filename)
-                            # data = {'type' : 'UploadFile',
-                            #         'name' : currentChatroom,
-                            #         'filename' : tail,
-                            #         'content' : content}
-                            # self.send(json.dumps(data))
-                            # response = self.recv()
 
                     #TODO
                     elif command == 'upload':
@@ -411,7 +471,6 @@ In `text` mode:
                                     'filename' : filename}
                             self.send(json.dumps(data))
                             response = self.recv()
-                            #  print(response)
 
                             if response['verdict'] == 'OK':
                                 content = response['data']
@@ -425,17 +484,16 @@ In `text` mode:
                     elif command == 'updateIcon':
                         icon = commands[1]
                         data = {'type' : 'UpdateIcon',
-                                'icon' : icon}
+                                'icon' : emoji.emojize(icon)}
                         self.send(json.dumps(data))
                         response = self.recv()
 
                     elif command == 'exit' or command == 'q':
                         currentChatroom = None
 
-                elif key in string.printable:
+                elif key in string.printable and key != chr(10):
                     if currentChatroom is not None:
                         mode = 'text'
-                        mainWindow.addstr(horizontalCut, verticalCut + 3, f'({mode:4s})')
                         buf = key
 
             elif mode == 'help':
@@ -445,12 +503,11 @@ In `text` mode:
                 if key == chr(27):   # esc
                     buf = ''
                     mode = 'ctrl'
-                    mainWindow.addstr(horizontalCut, verticalCut + 3, f'({mode:4s})')
                 elif key == chr(10): #enter
                     if buf != '':
                         data = {'type' : 'Messaging',
                                 'name' : currentChatroom,
-                                'text' : buf}
+                                'text' : emoji.emojize(buf)}
                         self.send(json.dumps(data))
                         response = self.recv()
                         buf = ''
@@ -458,14 +515,6 @@ In `text` mode:
                     buf = buf[:-1] if len(buf) > 0 else buf
                 elif key in string.printable:
                     buf = buf + key
-
-            for i in range(textHeight):
-                mainWindow.addstr(horizontalCut + 1 + i, verticalCut + 1, ' ' * textWidth)
-
-            tmpbuf = buf + '_'
-            lines = [tmpbuf[i : i + textWidth] for i in range(0, len(tmpbuf), textWidth)]
-            for i, l in enumerate(lines[-textHeight:]):
-                mainWindow.addstr(horizontalCut + 1 + i, verticalCut + 1, l)
 
             mainWindow.refresh()
             time.sleep(0.01)

@@ -50,6 +50,13 @@ files: {self.files}
                                  'data' : text,
                                  'timestamp' : ts})
 
+    def addImg(self, sender, senderIcon, caption, img, ts):
+        self.chatHistory.append({'sender' : sender,
+                                 'senderIcon' : senderIcon,
+                                 'type' : 'image',
+                                 'data' : [caption, img],
+                                 'timestamp' : ts})
+
     def addFile(self, sender, senderIcon, filename, data, ts):
         self.chatHistory.append({'sender' : sender,
                                  'senderIcon' : senderIcon,

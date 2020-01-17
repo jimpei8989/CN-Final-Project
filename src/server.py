@@ -157,6 +157,19 @@ class Server():
             else:
                 sendFail('Permission Error')
 
+        # TODO: Handle Image (Chafa)
+        if data['type'] == 'Image':
+            user = getUser()
+            name, caption, img = data['name'], data['caption'], data['img']
+            if name in self.chatroomMgr.chatrooms and self.chatroomMgr.chatrooms[name].isMember(user):
+                timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                userIcon = self.accountAgent.getUserIcon(user)
+                self.chatroomMgr.chatrooms[name].addImg(user, userIcon, caption, img, timestamp)
+                sendOK()
+                self.logger.debug(f'handleConnection -> Messaging: \'{user}\' imaged\n\t\t\t{caption}\n\t\tin [{name}]')
+            else:
+                sendFail('Permission Error')
+
         # TODO: Handle Upload File
         if data['type'] == 'UploadFile':
             user = getUser()
