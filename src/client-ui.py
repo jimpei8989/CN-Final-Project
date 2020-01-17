@@ -257,7 +257,8 @@ o888o        o888o  o888o  `V88V"V8P'     "888" `Y888""8o o888o o888o o888o
                     elif typee == 'image':
                         displayText = [f'!!!!! {data[0]} !!!!!!']
                     alignRight(displayHeader, displayText)
-                    imageRight(data[1])
+                    if typee == 'image':
+                        imageRight(data[1])
                 else:
                     if typee == 'text':
                         displayText = ['>>> ' + data[i : i + widthPerLine] for i in range(0, len(data), widthPerLine)]
@@ -266,7 +267,8 @@ o888o        o888o  o888o  `V88V"V8P'     "888" `Y888""8o o888o o888o o888o
                     elif typee == 'image':
                         displayText = [f'!!!!! {data[0]} !!!!!!']
                     alignLeft(displayHeader, displayText)
-                    imageRight(data[1])
+                    if typee == 'image':
+                        imageRight(data[1])
             chatPad.refresh(0 if rowCount < chatPadHeight else rowCount - chatPadHeight, 0, 1, verticalCut + 1, horizontalCut - 1, nCols - 2)
 
         def displayPusheen():
