@@ -50,6 +50,7 @@ class Server():
 
     def handleConnection(self, data, clientSocket, clientIP, clientPort, connectionState):
         def sendOK(msg = ''):
+            print(len(msg))
             clientSocket.send(('OK' if msg == '' else f'OK|{msg}').encode('UTF-8'))
         def sendFail(msg = ''):
             clientSocket.send(('Fail' if msg == '' else f'Fail|{msg}').encode('UTF-8'))
