@@ -3,7 +3,7 @@ import base64
 import string
 from argparse import ArgumentParser
 from constants import *
-
+import tempfile
 # UI
 import curses
 
@@ -359,6 +359,29 @@ In `text` mode:
                         if name in [c[0] for c in self.chatroomList]:
                             currentChatroom = name
 
+                    elif command == 'image':
+                        if currentChatroom is not None:
+                            filename = os.path.expanduser(commands[1])
+                            tmp = tempfile.NamedTemporaryFile()
+                            with open(filename, 'rb') as f:
+                                tmp.write(f.read())
+                            tmp.seek(0)
+                            img = os.popen(f"chafa -c 256 --color-space din99d --symbols -dot-stipple --size 30x30 {tmp.name}").read()
+                            open('test_img', 'w').write(img)
+                            data = {'type' : 'Messaging',
+                                    'name' : currentChatroom,
+                                    'text' : img}
+                            self.send(json.dumps(data))
+                            response = self.recv()
+                            buf = ''
+                            # head, tail = os.path.split(filename)
+                            # data = {'type' : 'UploadFile',
+                            #         'name' : currentChatroom,
+                            #         'filename' : tail,
+                            #         'content' : content}
+                            # self.send(json.dumps(data))
+                            # response = self.recv()
+
                     #TODO
                     elif command == 'upload':
                         if currentChatroom is not None:
@@ -382,7 +405,7 @@ In `text` mode:
                                     'filename' : filename}
                             self.send(json.dumps(data))
                             response = self.recv()
-                            print(response)
+                            # print(response)
                             if response['verdict'] == 'OK':
                                 content = response['data']
                                 if len(commands) > 2:
@@ -391,7 +414,7 @@ In `text` mode:
                                     fullname = os.path.expanduser(os.path.join('~', 'Downloads', filename))
                                 with open(fullname, 'wb') as f:
                                     f.write(base64.b64decode(content))
-                                    
+
                     elif command == 'updateIcon':
                         icon = commands[1]
                         data = {'type' : 'UpdateIcon',
