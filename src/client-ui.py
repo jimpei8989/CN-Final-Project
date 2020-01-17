@@ -142,6 +142,7 @@ o888o        o888o  o888o  `V88V"V8P'     "888" `Y888""8o o888o o888o o888o
         self.activeWindows[mainWindow] = None
 
         def displayFramework():
+            mainWindow.erase()
             mainWindow.box()
             mainWindow.addch(0, verticalCut, curses.ACS_TTEE)
             mainWindow.vline(1, verticalCut, curses.ACS_VLINE, nRows - 2)
@@ -168,6 +169,7 @@ o888o        o888o  o888o  `V88V"V8P'     "888" `Y888""8o o888o o888o o888o
 
         def displayChatroomList(chatroomList):
             # chatroomList is a list of 3-tuple of strings (name, icon, last ts)
+            leftPad.erase()
             rowCount = 0
             for i, c in enumerate(chatroomList):
                 if i != 0:
