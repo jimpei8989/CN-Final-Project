@@ -458,16 +458,20 @@ In `text` mode:
                     #TODO
                     elif command == 'upload':
                         if currentChatroom is not None:
-                            filename = os.path.expanduser(commands[1])
-                            with open(filename, 'rb') as f:
-                                content = base64.b64encode(f.read()).decode()
-                            head, tail = os.path.split(filename)
-                            data = {'type' : 'UploadFile',
-                                    'name' : currentChatroom,
-                                    'filename' : tail,
-                                    'content' : content}
-                            self.send(json.dumps(data))
-                            response = self.recv()
+                            for fn in commands[1:]:
+                                try:
+                                    filename = os.path.expanduser(fn)
+                                    with open(filename, 'rb') as f:
+                                        content = base64.b64encode(f.read()).decode()
+                                    head, tail = os.path.split(filename)
+                                    data = {'type' : 'UploadFile',
+                                            'name' : currentChatroom,
+                                            'filename' : tail,
+                                            'content' : content}
+                                    self.send(json.dumps(data))
+                                    response = self.recv()
+                                except FileNotFoundError:
+                                    pass
 
                     #TODO
                     elif command == 'download':
