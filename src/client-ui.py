@@ -494,6 +494,7 @@ def main(screen):
                         win.refresh()
                     else:                           # is a pad
                         win.refresh(*activeWindows[win])
+                break
 
     # Handle signal
     signal.signal(signal.SIGINT, handler)
