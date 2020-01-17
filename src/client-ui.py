@@ -37,15 +37,20 @@ class Client():
         self.sock.send(message.encode('utf-8'))
 
     def recv(self):
-        buf = ''
-        while True:
-            try:
-                tmp = self.sock.recv(MAX_BUFFER_SIZE).decode()
-                buf += tmp
-                data = json.loads(buf)
-                return data
-            except json.decoder.JSONDecodeError:
-                pass
+        buf = bytes()
+        with open('tmp.buf', 'wb') as f:
+            while True:
+                tmp = self.sock.recv(MAX_BUFFER_SIZE)
+                if not tmp:
+                    break
+                else:
+                    f.write(tmp)
+                    buf += tmp
+                try:
+                    data = json.loads(buf)
+                    return data
+                except json.decoder.JSONDecodeError:
+                    pass
 
     def login(self, relogin = 3):
         screen = self.screen
@@ -104,7 +109,6 @@ o888o        o888o  o888o  `V88V"V8P'     "888" `Y888""8o o888o o888o o888o
         self.send(json.dumps(data))
         response = self.recv()
         resultRegistration = (response['verdict'] == 'OK')
-        loginWindow.addstr(1, 1, 'blah')
 
         data = {'type' : 'Login', 'username' : username, 'password' : password}
         self.send(json.dumps(data))
@@ -382,7 +386,7 @@ In `text` mode:
                                     'filename' : filename}
                             self.send(json.dumps(data))
                             response = self.recv()
-                            print(response)
+                            #  print(response)
                             if response['verdict'] == 'OK':
                                 content = response['data']
                                 if len(commands) > 2:

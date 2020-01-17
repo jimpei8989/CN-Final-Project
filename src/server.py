@@ -38,7 +38,7 @@ class Server():
                 self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 self.sock.bind((hostname, port))
-                self.sock.setblocking(0)
+                #  self.sock.setblocking(0)
             except socket.error as msg:
                 self.logger.info(f'✘ [Init Server Socket] : {msg}')
                 time.sleep(1)
@@ -51,16 +51,19 @@ class Server():
         self.chatroomMgr.save()
 
     def handleConnection(self, data, clientSocket, clientIP, clientPort, connectionState):
+        def send(s):
+            while True:
+                try:
+                    ret = clientSocket.sendall(s.encode('utf-8'))
+                    if ret is None:
+                        break
+                except:
+                    pass
+
         def sendOK(msg = ''):
-            clientSocket.send(json.dumps({
-                'verdict': 'OK',
-                'data': msg
-                }).encode('UTF-8'))
+            send(json.dumps({ 'verdict': 'OK', 'data': msg }))
         def sendFail(msg = ''):
-            clientSocket.send(json.dumps({
-                'verdict': 'Fail',
-                'data': msg
-                }).encode('UTF-8'))
+            send(json.dumps({ 'verdict': 'Fail', 'data': msg }))
 
         def getUser():
             if clientSocket not in connectionState or connectionState[clientSocket] is None:
@@ -119,7 +122,6 @@ class Server():
             user = getUser()
             chatroomList = self.accountAgent.getChatroomList(user)
             chatroomList = sorted([self.chatroomMgr.getMetadata(c) for c in chatroomList], key = lambda k : k[2], reverse = True)
-            print(json.dumps(chatroomList))
             sendOK(json.dumps(chatroomList))
             self.logger.info(f'handleConnection -> GetUserChatroomList: user \'{user}\' queried successfully')
             
@@ -139,7 +141,6 @@ class Server():
                 sendFail('Permission Error')
             else:
                 history = self.chatroomMgr.chatrooms[name].getChatHistory(size)
-                print(history)
                 sendOK(json.dumps(history))
                 self.logger.debug(f'handleConnection -> GetChatHistory: \'{user}\' queried chatroom')
 
@@ -178,7 +179,6 @@ class Server():
                 if content is None:
                     sendFail('File not found')
                 else:
-                    print(content)
                     sendOK(content)
             else:
                 sendFail('Permission Error')
@@ -206,7 +206,7 @@ class Server():
                 if key.data is None:
                     connection, address = self.sock.accept()
                     connectionBuffer[connection] = bytes()
-                    connection.setblocking(0)
+                    #  connection.setblocking(0)
                     selector.register(connection, selectors.EVENT_READ, data = address)
                     clientIP, clientPort = address
                     self.logger.info(f'Connection from [{clientIP} : {clientPort}]')
