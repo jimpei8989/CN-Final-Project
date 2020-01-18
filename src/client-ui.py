@@ -40,19 +40,17 @@ class Client():
 
     def recv(self):
         buf = bytes()
-        with open('tmp.buf', 'wb') as f:
-            while True:
-                tmp = self.sock.recv(MAX_BUFFER_SIZE)
-                if not tmp:
-                    break
-                else:
-                    f.write(tmp)
-                    buf += tmp
-                try:
-                    data = json.loads(buf)
-                    return data
-                except json.decoder.JSONDecodeError:
-                    pass
+        while True:
+            tmp = self.sock.recv(MAX_BUFFER_SIZE)
+            if not tmp:
+                break
+            else:
+                buf += tmp
+            try:
+                data = json.loads(buf)
+                return data
+            except json.decoder.JSONDecodeError:
+                pass
 
     def setColor(self, fg, bg):
         if (fg, bg) not in self.colorToPair:
@@ -98,8 +96,8 @@ o888o        o888o  o888o  `V88V"V8P'     "888" `Y888""8o o888o o888o o888o
 
         if relogin != False:
             reloginMessage = f' Incorrect username or password! ({relogin})'
-            curses.init_pair(2, 160, 227)
-            loginWindow.addstr(usernameBeginRow + 3, usernameBeginCol - 1, reloginMessage, curses.color_pair(2) | curses.A_BLINK)
+            #  curses.init_pair(2, 160, 227)
+            loginWindow.addstr(usernameBeginRow + 3, usernameBeginCol - 1, reloginMessage, curses.color_pair(self.setColor(160, 227)) | curses.A_BLINK)
         else:
             registerMessage = 'We\'ll register for you if you haven\'t registered yet'
             if len(registerMessage) > characterPerLine:
@@ -358,7 +356,7 @@ In `text` mode:
         buf = ''
         while True:
             # Display Framework
-            displayFramework()
+            #  displayFramework()
 
             # Display left pad
             self.chatroomList = getChatroomList()
@@ -533,7 +531,6 @@ In `text` mode:
                 elif key in string.printable:
                     buf = buf + key
 
-            mainWindow.refresh()
             time.sleep(0.01)
 
 
