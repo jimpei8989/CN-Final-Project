@@ -206,6 +206,7 @@ o888o        o888o  o888o  `V88V"V8P'     "888" `Y888""8o o888o o888o o888o
             chatPad.erase()
             rowCount = 0
             def imageLeft(img):
+                trow = 0
                 self.colorToPair = {}
                 nonlocal rowCount
                 # img should be a 2d list of (ch, fg, bg)
@@ -216,7 +217,8 @@ o888o        o888o  o888o  `V88V"V8P'     "888" `Y888""8o o888o o888o o888o
                         ch, fg, bg = c
                         chatPad.addstr(rowCount, j, ch, curses.color_pair(self.setColor(fg, bg)))
                     rowCount += 1
-                rowCount += 9
+                    rowCount += 1
+                rowCount += chatPadHeight - trow - 3
 
             def imageRight(img):
                 trow = 0
