@@ -217,7 +217,7 @@ o888o        o888o  o888o  `V88V"V8P'     "888" `Y888""8o o888o o888o o888o
                         ch, fg, bg = c
                         chatPad.addstr(rowCount, j, ch, curses.color_pair(self.setColor(fg, bg)))
                     rowCount += 1
-                    rowCount += 1
+                    trow += 1
                 rowCount += chatPadHeight - trow - 3
 
             def imageRight(img):
