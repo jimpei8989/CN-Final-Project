@@ -206,6 +206,7 @@ o888o        o888o  o888o  `V88V"V8P'     "888" `Y888""8o o888o o888o o888o
             chatPad.erase()
             rowCount = 0
             def imageLeft(img):
+                self.colorToPair = {}
                 nonlocal rowCount
                 # img should be a 2d list of (ch, fg, bg)
                 tmpH = len(img)
@@ -215,9 +216,11 @@ o888o        o888o  o888o  `V88V"V8P'     "888" `Y888""8o o888o o888o o888o
                         ch, fg, bg = c
                         chatPad.addstr(rowCount, j, ch, curses.color_pair(self.setColor(fg, bg)))
                     rowCount += 1
-                rowCount += 1
+                rowCount += 9
 
             def imageRight(img):
+                trow = 0
+                self.colorToPair = {}
                 nonlocal rowCount
                 # img should be a 2d list of (ch, fg, bg)
                 tmpH = len(img)
@@ -227,7 +230,8 @@ o888o        o888o  o888o  `V88V"V8P'     "888" `Y888""8o o888o o888o o888o
                         ch, fg, bg = c
                         chatPad.addstr(rowCount, chatPadWidth - tmpW  - 2 + j, ch, curses.color_pair(self.setColor(fg, bg)))
                     rowCount += 1
-                rowCount += 1
+                    trow += 1
+                rowCount += chatPadHeight - trow - 3
 
             def alignLeft(header, lines = []):
                 nonlocal rowCount
@@ -429,7 +433,7 @@ In `text` mode:
                             with open(filename, 'rb') as f:
                                 tmp.write(f.read())
                             tmp.seek(0)
-                            imgBytes = os.popen(f'chafa -c 256 --color-space din99d --symbols -dot-stipple --size=40x40 {tmp.name}').read()
+                            imgBytes = os.popen(f'chafa -c 256 --size=30x30 {tmp.name}').read()
                             
                             def parse(b):
                                 segs = b.split('m')
